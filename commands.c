@@ -12,7 +12,10 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
     superblock.datablocks_size = datablock_size;
     superblock.metadata_size; = datablock_size;
 
-    int write(cfs_File, &superblock, sizeof(superblock));
+    write(cfs_File, &superblock, sizeof(superblock));
+
+
+    vasia
 
     fclose(cfs_File)
 
