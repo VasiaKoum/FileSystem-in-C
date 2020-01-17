@@ -7,7 +7,7 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
     if(cfs_File == NULL){
         printf("Unable to create file.\n");
     }
-    Superblock superblock2;
+
     Superblock superblock;
     superblock.datablocks_size = datablock_size;
     superblock.metadata_size; = datablock_size;
