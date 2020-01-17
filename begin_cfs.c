@@ -9,5 +9,7 @@
 
 int main(){
 
-
+    //anagnwrizoume to command vlepoume ta flag tou
+    //kai thjjrexoume tin sinartisi me etoima ta orismata
+    //an den exei tous vazoume default times
 }
