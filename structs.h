@@ -20,5 +20,5 @@ typedef struct{
 typedef struct{
 	unsigned int datablocks_size;
 	unsigned int metadata_size;
-	
+	char path_root[100];
 } Superblock;
