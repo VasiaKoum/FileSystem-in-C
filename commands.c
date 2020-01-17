@@ -11,7 +11,7 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
     Superblock superblock;
     superblock.datablocks_size = datablock_size;
     superblock.metadata_size; = sizeof(MDS);
-    paizei
+
     write(cfs_File, &superblock, sizeof(superblock));
 
     fclose(cfs_File)
