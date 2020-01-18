@@ -111,7 +111,7 @@ int cfs_workwith(char *filename){
     if((cfs_file = open(filename, O_RDONLY))<0) perror("Unable to open file.");
 
     /* EDW THA ANANEWSOUME TIS DOMES POU THA FTIAXOUME DLD THN LISTA */
-    node_list browselist;
+    //node_list browselist;
 
     // close(cfs_file);
     printf("Now working on %s file\n", filename);

@@ -11,7 +11,7 @@ typedef struct{
 	unsigned int offset;
 	char *filename;
 	unsigned int size;
-	unsigned int type;
+	unsigned int type; //1-file 2-folder 3-link
 	unsigned int parent_nodeid;
 	time_t creation_time;
 	time_t access_time;
@@ -23,7 +23,7 @@ typedef struct{
 typedef struct{
 	unsigned int datablocks_size;
 	unsigned int metadata_size;
-	char path_root[FILENAME_SIZE];
+	unsigned int root_mds_offset;
 } Superblock;
 
 typedef struct{
