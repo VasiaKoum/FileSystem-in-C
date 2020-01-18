@@ -1,5 +1,5 @@
 #include <time.h>
-#define DATABLOCK_NUM 512
+#define DATABLOCK_NUM 5
 #define FILENAME_SIZE 200
 
 typedef struct{
