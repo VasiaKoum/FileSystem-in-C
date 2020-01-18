@@ -60,7 +60,7 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
     // printf("In cfs_create with: %s %d %d %d %d\n", cfs_name, datablock_size, filenames_size, max_file_size, max_files_in_dirs);
     int cfs_file;
 
-    //Fix the cfs_name with .cfs prefix
+    // Fix the cfs_name with .cfs prefix
     char *name = malloc(sizeof(char)*strlen(cfs_name)+5);
     char *pathname = malloc(sizeof(char)*strlen(cfs_name)+7);
     strcpy(name, cfs_name); strcat(name, ".cfs"); strcpy(pathname, "./"); strcat(pathname, name);
