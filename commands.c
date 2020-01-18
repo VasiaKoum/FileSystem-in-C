@@ -10,7 +10,7 @@
 #define PERMS 0644      // set access permissions
 #define FILENAME_SIZE 200
 #define BLOCK_SIZE 512
-#define MAX_FILE_SIZE 1000
+#define MAX_FILE_SIZE 3000
 #define MAX_FILES_PER_DIR 10
 
 
@@ -86,20 +86,18 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
     write(cfs_file, &superblock, sizeof(superblock));
     write(cfs_file, &bitmap, sizeof(bitmap));
 
-    int position = lseek(cfs_file, 0, SEEK_CUR);
-    printf("offset mds %d position is %d\n", superblock.root_mds_offset, position);
-
     MDS root_mds;
     root_mds.nodeid = 0;
     root_mds.offset = superblock.root_mds_offset;
     root_mds.type = 2;
     root_mds.parent_nodeid = -1;
-    root_mds.time = time(0); root_mds.access_time = time(0); root_mds.modification_time = time(0);
-    root_mds.data[0] = root_mds.offset + superblock.metadata_size;
+    root_mds.creation_time = time(0); root_mds.access_time = time(0); root_mds.modification_time = time(0);
+    root_mds.data.datablocks[0] = root_mds.offset + superblock.metadata_size;
     for(int i = 1; i < DATABLOCK_NUM; i++){
-        root_mds.data[i] = root_mds.data[i-1] + superblock.datablocks_size;
+        root_mds.data.datablocks[i] = root_mds.data.datablocks[i-1] + superblock.datablocks_size;
     }
     write(cfs_file, &root_mds, sizeof(root_mds));
+    position = lseek(cfs_file, 0, SEEK_CUR);
     printf("offset mds %d position is %d\n", superblock.root_mds_offset, position);
     close(cfs_file);
 
