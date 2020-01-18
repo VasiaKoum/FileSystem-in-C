@@ -97,8 +97,6 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
         root_mds.data.datablocks[i] = root_mds.data.datablocks[i-1] + superblock.datablocks_size;
     }
     write(cfs_file, &root_mds, sizeof(root_mds));
-    position = lseek(cfs_file, 0, SEEK_CUR);
-    printf("offset mds %d position is %d\n", superblock.root_mds_offset, position);
     close(cfs_file);
 
     free(name); free(pathname);
