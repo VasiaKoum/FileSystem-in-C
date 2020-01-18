@@ -105,6 +105,7 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
     superblock.datablocks_size = datablock_size;
     superblock.metadata_size = sizeof(MDS);
     superblock.root_mds_offset = sizeof(superblock) + sizeof(bitmap); // offset tou mds
+    superblock.latest_nodeid = 0;
     write(cfs_file, &superblock, sizeof(superblock));
     write(cfs_file, &bitmap, sizeof(bitmap));
 
