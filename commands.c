@@ -79,27 +79,53 @@ void back_to_path(list_node **current, unsigned int nodeid){
 
 /**********************************************************************************************************************/
 
-void add_to_bitmap(){
+void add_to_bitmap(Bitmap* bitmap, int offset,int cfs_file){
+    int record_packet = 0, cfs_place = 0, bitmap_byte_place = 0, bitmap_bit_place = 0;
+    lseek(cfs_file, 0, SEEK_SET);
+    Superblock *superblock = malloc(sizeof(Superblock));
+    read(cfs_file, superblock, sizeof(Superblock));
+    mds_offset = superblock->root_mds_offset;
+    record_packet = superblock->metadata_size + superblock->datablocks_size*DATABLOCK_NUM;
+
+    offset = offset - sizeof(Superblock) - sizeof(Bitmap);
+    cfs_place = offset/record_packet;
+    bitmap_byte_place = cfs_place/8;
+    bitmap_bit_place = cfs_place%8;
+    unsigned char one = 1;
+    one = one << bitmap_bit_place;
+    bitmap->array[bitmap_byte_place] = bitmap->array[bitmap_byte_place]|one;
+
+    free(superblock);
+}
+
+int get_space(Bitmap* bitmap,int cfs_file){
+    int i = 0;
+    while(bitmap->array[i] < )
+
 
 
 
 
 }
 
-int get_space(){
+void delete_from_bitmap(Bitmap* bitmap, int offset,int cfs_file){
+    int record_packet = 0, cfs_place = 0, bitmap_byte_place = 0, bitmap_bit_place = 0;
+    lseek(cfs_file, 0, SEEK_SET);
+    Superblock *superblock = malloc(sizeof(Superblock));
+    read(cfs_file, superblock, sizeof(Superblock));
+    mds_offset = superblock->root_mds_offset;
+    record_packet = superblock->metadata_size + superblock->datablocks_size*DATABLOCK_NUM;
 
+    offset = offset - sizeof(Superblock) - sizeof(Bitmap);
+    cfs_place = offset/record_packet;
+    bitmap_byte_place = cfs_place/8;
+    bitmap_bit_place = cfs_place%8;
+    unsigned char one = 1;
+    one = one << bitmap_bit_place;
+    one = ~one;
+    bitmap->array[bitmap_byte_place] = bitmap->array[bitmap_byte_place]&one;
 
-
-
-
-
-}
-
-void delete_from_bitmap(){
-
-
-
-
+    free(superblock);
 }
 
 
@@ -123,8 +149,8 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
 
     // char *path = realpath(pathname, NULL);
     Bitmap bitmap;
-    bitmap.array = malloc(sizeof(char)*1);
-    memset(bitmap.array, 0, 1);
+    bitmap.array = malloc(sizeof(char)*BITMAP_SIZE);
+    memset(bitmap.array, 0, BITMAP_SIZE);
 
     Superblock superblock;
     superblock.datablocks_size = datablock_size;

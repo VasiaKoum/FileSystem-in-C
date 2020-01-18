@@ -1,6 +1,7 @@
 #include <time.h>
 #define DATABLOCK_NUM 5
 #define FILENAME_SIZE 200
+#define BITMAP_SIZE 512
 
 typedef struct{
 	unsigned int datablocks[DATABLOCK_NUM];
@@ -27,7 +28,7 @@ typedef struct{
 } Superblock;
 
 typedef struct{
-	char *array;
+	unsigned char *array;
 } Bitmap;
 
 typedef struct list_node{
