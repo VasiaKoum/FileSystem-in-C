@@ -70,6 +70,7 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
         perror("Unable to create file.");
         exit(1);
     }
+    lseek(cfs_file, 0, SEEK_SET);
 
     char *path = realpath(pathname, NULL);
     Superblock superblock;
@@ -81,6 +82,16 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
     Bitmap bitmap;
     bitmap.array = malloc(sizeof(char)*1);
     memset(bitmap.array, 0, 1);
+    write(cfs_file, &bitmap, sizeof(bitmap));
+
+    /* Initilize cfs_file->MDS */
+    //lseek()
+    MDS route_mds;
+    route_mds.nodeid = 0;
+    route_mds.offset =
+
+
+
     close(cfs_file);
 
     free(name); free(pathname);
