@@ -9,7 +9,7 @@ typedef struct{
 typedef struct{
 	unsigned int nodeid;
 	unsigned int offset;
-	char *filename;
+	char filename[FILENAME_SIZE];
 	unsigned int size;
 	unsigned int type; //1-file 2-folder 3-link
 	unsigned int parent_nodeid;
@@ -33,5 +33,6 @@ typedef struct{
 typedef struct list_node{
 	unsigned int nodeid;
 	unsigned int offset;
+	char filename[FILENAME_SIZE];
 	struct list_node *parent_dir;
 }list_node;

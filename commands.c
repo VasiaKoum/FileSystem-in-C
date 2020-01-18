@@ -79,6 +79,31 @@ void back_to_path(list_node **current, unsigned int nodeid){
 
 /**********************************************************************************************************************/
 
+void add_to_bitmap(){
+
+
+
+
+}
+
+int get_space(){
+
+
+
+
+
+
+}
+
+void delete_from_bitmap(){
+
+
+
+
+}
+
+
+/************************************************************************************************************************/
 void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_file_size, int max_files_in_dirs){
     // printf("In cfs_create with: %s %d %d %d %d\n", cfs_name, datablock_size, filenames_size, max_file_size, max_files_in_dirs);
     int cfs_file;
@@ -114,6 +139,7 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
     root_mds.offset = superblock.root_mds_offset;
     root_mds.type = 2;
     root_mds.parent_nodeid = -1;
+    strcpy(root_mds.filename, cfs_name);
     root_mds.creation_time = time(0); root_mds.access_time = time(0); root_mds.modification_time = time(0);
     root_mds.data.datablocks[0] = root_mds.offset + superblock.metadata_size;
     for(int i = 1; i < DATABLOCK_NUM; i++){
@@ -131,6 +157,7 @@ int cfs_workwith(char *filename, list_node **current){
     else{
         lseek(cfs_file, 0, SEEK_SET);
         unsigned int mds_offset, nodeid, offset;
+        char *filename;
         Superblock *superblock = malloc(sizeof(Superblock));
         MDS *mds = malloc(sizeof(MDS));
         read(cfs_file, superblock, sizeof(Superblock));
