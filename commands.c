@@ -123,6 +123,7 @@ void cfs_mkdir(char *dirnames, int cfs_file){
 
 void cfs_touch(bool time_acc, bool time_edit, char *filenames, int cfs_file){
     if(cfs_file>0){
+      
         printf("In cfs_touch\n");
     }
     else printf("Execute first cfs_workwith.\n");
