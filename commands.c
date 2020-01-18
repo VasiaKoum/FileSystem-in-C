@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <fcntl.h>      // to have access to flags def
 #include <unistd.h>
+#include <time.h>
 #include "commands.h"
 #include "structs.h"
 #define PERMS 0644      // set access permissions
@@ -63,7 +64,8 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
     // Fix the cfs_name with .cfs prefix
     char *name = malloc(sizeof(char)*strlen(cfs_name)+5);
     char *pathname = malloc(sizeof(char)*strlen(cfs_name)+7);
-    strcpy(name, cfs_name); strcat(name, ".cfs"); strcpy(pathname, "./"); strcat(pathname, name);
+    strcpy(name, cfs_name); strcat(name, ".cfs");
+    // strcpy(pathname, "./"); strcat(pathname, name);
 
     // Create the cfs file
     if((cfs_file = open(name, O_CREAT|O_RDWR,PERMS))<0){
@@ -72,11 +74,11 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
     }
     lseek(cfs_file, 0, SEEK_SET);
 
-    char *path = realpath(pathname, NULL);
+    // char *path = realpath(pathname, NULL);
     Superblock superblock;
     superblock.datablocks_size = datablock_size;
     superblock.metadata_size = sizeof(MDS);
-    strcpy(superblock.path_root, path);
+    superblock.root_mds_offset = // offset tou mds
     write(cfs_file, &superblock, sizeof(superblock));
 
     Bitmap bitmap;
@@ -86,11 +88,18 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
 
     /* Initilize cfs_file->MDS */
     //lseek()
-    MDS route_mds;
-    route_mds.nodeid = 0;
-    route_mds.offset =
-
-
+    MDS root_mds;
+    root_mds.nodeid = 0;
+    root_mds.offset = //to offset tou mds
+    root_mds.type = 2;
+    root_mds.parent_nodeid = -1;
+    root_mds.time = time(0);
+    root_mds.access_time = time(0);
+  	root_mds.modification_time = time(0);
+    root_mds.data[0] = root_mds.offset + superblock.metadata_size;
+    for(int i = 1; i < DATABLOCK_NUM; i++){
+        root_mds.data[i] = root_mds.data[i] + superblock.datablocks_size;
+    }
 
     close(cfs_file);
 
@@ -102,6 +111,7 @@ int cfs_workwith(char *filename){
     if((cfs_file = open(filename, O_RDONLY))<0) perror("Unable to open file.");
 
     /* EDW THA ANANEWSOUME TIS DOMES POU THA FTIAXOUME DLD THN LISTA */
+    node_list browselist;
 
     // close(cfs_file);
     printf("Now working on %s file\n", filename);
