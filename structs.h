@@ -23,6 +23,7 @@ typedef struct{
 	unsigned int datablocks_size;
 	unsigned int metadata_size;
 	unsigned int root_mds_offset;
+	unsigned int latest_nodeid;
 } Superblock;
 
 typedef struct{
