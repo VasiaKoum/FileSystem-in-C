@@ -47,8 +47,13 @@ int edit_commands(char *command,int cfs_file, list_node **current){
         char *options = strtok(check_options, "\n");
         cfs_touch(1, 1, "vasia", cfs_file);
     }
-    else if(strncmp(command, (char*)"cfs_pwd", 7)==0 ) {
-        cfs_pwd(cfs_file);
+    else if(strncmp(command, (char*)"cfs_pwd", 7)==0) {
+        cfs_pwd(cfs_file, current);
+    }
+    else if(strncmp(command, (char*)"cfs_cd ", 7)==0 && strlen(command)>8) {
+        char *check_path = &(command[7]);
+        char *path = strtok(check_path, "\n");
+        cfs_cd(cfs_file, current, path);
     }
     else printf("Wrong command, type again.\n");
     return cfs_file;
@@ -56,54 +61,46 @@ int edit_commands(char *command,int cfs_file, list_node **current){
 
 /**********************************************************************************************************************/
 
-void add_dir_to_path(list_node **current, unsigned int nodeid, unsigned int offset){
+void add_dir_to_path(list_node **current, unsigned int nodeid, unsigned int offset, char *filename){
     list_node *new, *tmp=*current;
     new = malloc(sizeof(list_node));
     new->nodeid = nodeid;
     new->offset = offset;
+    strcpy(new->filename, filename);
     if (tmp != NULL) new->parent_dir = tmp;
     else { new->parent_dir=NULL; }
     (*current) = &(*new);
 }
 
-void back_to_path(list_node **current, unsigned int nodeid){
+void back_to_path(list_node **current, unsigned int nodeid, int back_depth){
     list_node *delete=*current, *tmp=*current;
-    if (tmp!=NULL){
-        while((tmp!=NULL) || (tmp->nodeid!=nodeid)){
+    bool found = false;
+    while((tmp!=NULL) && (!found)){
+        if (tmp->nodeid!=nodeid){
             (*current) = &(*(delete->parent_dir));
             free(delete);
             tmp=*current;
         }
+        else found = true;
     }
+}
+
+void print_current_path(list_node **current){
+    list_node *tmp=*current;
+    char full_path[FILENAME_SIZE], current_path[FILENAME_SIZE];
+    memset(full_path, 0, sizeof(char)*FILENAME_SIZE);
+    while(tmp!=NULL){
+        sprintf(current_path, "/%s%s", tmp->filename, full_path);
+        memset(full_path, 0, sizeof(char)*FILENAME_SIZE);
+        sprintf(full_path, "%s", current_path);
+        memset(current_path, 0, sizeof(char)*FILENAME_SIZE);
+        tmp = tmp->parent_dir;
+    }
+    printf("%s\n", full_path);
 }
 
 /**********************************************************************************************************************/
 
-void add_to_bitmap(){
-
-
-
-
-}
-
-int get_space(){
-
-
-
-
-
-
-}
-
-void delete_from_bitmap(){
-
-
-
-
-}
-
-
-/************************************************************************************************************************/
 void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_file_size, int max_files_in_dirs){
     // printf("In cfs_create with: %s %d %d %d %d\n", cfs_name, datablock_size, filenames_size, max_file_size, max_files_in_dirs);
     int cfs_file;
@@ -139,7 +136,8 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
     root_mds.offset = superblock.root_mds_offset;
     root_mds.type = 2;
     root_mds.parent_nodeid = -1;
-    strcpy(root_mds.filename, cfs_name);
+    root_mds.parent_offset = -1;
+    strcpy(root_mds.filename, name);
     root_mds.creation_time = time(0); root_mds.access_time = time(0); root_mds.modification_time = time(0);
     root_mds.data.datablocks[0] = root_mds.offset + superblock.metadata_size;
     for(int i = 1; i < DATABLOCK_NUM; i++){
@@ -167,9 +165,10 @@ int cfs_workwith(char *filename, list_node **current){
         read(cfs_file, mds, sizeof(MDS));
         nodeid = mds->nodeid;
         offset = mds->offset;
-        add_dir_to_path(current, nodeid, offset);
+        filename = mds->filename;
+        add_dir_to_path(current, nodeid, offset, filename);
 
-        printf("Now working on %s file\n", filename);
+        printf("Now working on file %s\n", filename);
         free(superblock); free(mds);
     }
     return cfs_file;
@@ -211,9 +210,22 @@ void cfs_touch(bool time_acc, bool time_edit, char *filenames, int cfs_file){
     else printf("Execute first cfs_workwith.\n");
 }
 
-void cfs_pwd(int cfs_file){
+void cfs_pwd(int cfs_file, list_node **current){
     if(cfs_file>0){
-        printf("In cfs_pwd\n");
+        print_current_path(current);
     }
     else printf("Execute first cfs_workwith.\n");
+}
+
+void cfs_cd(int cfs_file, list_node **current, char *path){
+    char *full_path = path;
+    strtok(full_path, "/");
+    while(full_path!=NULL){
+        printf("dir: %s\n", full_path);
+        full_path = strtok(NULL, "/");
+    }
+}
+
+int find_path(int cfs_file, list_node **current, char *path){
+
 }
