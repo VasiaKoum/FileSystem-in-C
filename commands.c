@@ -84,7 +84,6 @@ void add_to_bitmap(Bitmap* bitmap, int offset,int cfs_file){
     lseek(cfs_file, 0, SEEK_SET);
     Superblock *superblock = malloc(sizeof(Superblock));
     read(cfs_file, superblock, sizeof(Superblock));
-    mds_offset = superblock->root_mds_offset;
     record_packet = superblock->metadata_size + superblock->datablocks_size*DATABLOCK_NUM;
 
     offset = offset - sizeof(Superblock) - sizeof(Bitmap);
@@ -99,13 +98,28 @@ void add_to_bitmap(Bitmap* bitmap, int offset,int cfs_file){
 }
 
 int get_space(Bitmap* bitmap,int cfs_file){
-    int i = 0;
-    while(bitmap->array[i] < )
+    int i = 0, bitmap_bit_place = 0, record_packet = 0, zero = 0;
+    int cfs_place = 0, offset = 0;
+    lseek(cfs_file, 0, SEEK_SET);
+    Superblock *superblock = malloc(sizeof(Superblock));
+    read(cfs_file, superblock, sizeof(Superblock));
+    record_packet = superblock->metadata_size + superblock->datablocks_size*DATABLOCK_NUM;
 
+    while(bitmap->array[i] < 255){
+        i++;
+    }
 
-
-
-
+    zero = 0;
+    unsigned char a = ~(bitmap->array[i]);
+    int j = 0;
+    while(a != 0){
+        a << 1;
+        j++;
+    }
+    cfs_place = i*8 + j;
+    offset = cfs_place*record_packet + sizeof(Superblock) + sizeof(Bitmap);
+    free(superblock);
+    return offset;
 }
 
 void delete_from_bitmap(Bitmap* bitmap, int offset,int cfs_file){
