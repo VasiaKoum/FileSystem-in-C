@@ -28,3 +28,9 @@ typedef struct{
 typedef struct{
 	char *array;
 } Bitmap;
+
+typedef struct list_node{
+	unsigned int nodeid;
+	unsigned int offset;
+	struct list_node *parent_dir;
+}list_node;
