@@ -19,7 +19,6 @@ typedef struct{
 	Datastream data;
 } MDS;
 
-
 typedef struct{
 	unsigned int datablocks_size;
 	unsigned int metadata_size;

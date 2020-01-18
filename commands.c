@@ -75,32 +75,32 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
     lseek(cfs_file, 0, SEEK_SET);
 
     // char *path = realpath(pathname, NULL);
-    Superblock superblock;
-    superblock.datablocks_size = datablock_size;
-    superblock.metadata_size = sizeof(MDS);
-    superblock.root_mds_offset = // offset tou mds
-    write(cfs_file, &superblock, sizeof(superblock));
-
     Bitmap bitmap;
     bitmap.array = malloc(sizeof(char)*1);
     memset(bitmap.array, 0, 1);
+
+    Superblock superblock;
+    superblock.datablocks_size = datablock_size;
+    superblock.metadata_size = sizeof(MDS);
+    superblock.root_mds_offset = sizeof(superblock) + sizeof(bitmap); // offset tou mds
+    write(cfs_file, &superblock, sizeof(superblock));
     write(cfs_file, &bitmap, sizeof(bitmap));
 
-    /* Initilize cfs_file->MDS */
-    //lseek()
+    int position = lseek(cfs_file, 0, SEEK_CUR);
+    printf("offset mds %d position is %d\n", superblock.root_mds_offset, position);
+
     MDS root_mds;
     root_mds.nodeid = 0;
-    root_mds.offset = //to offset tou mds
+    root_mds.offset = superblock.root_mds_offset;
     root_mds.type = 2;
     root_mds.parent_nodeid = -1;
-    root_mds.time = time(0);
-    root_mds.access_time = time(0);
-  	root_mds.modification_time = time(0);
+    root_mds.time = time(0); root_mds.access_time = time(0); root_mds.modification_time = time(0);
     root_mds.data[0] = root_mds.offset + superblock.metadata_size;
     for(int i = 1; i < DATABLOCK_NUM; i++){
-        root_mds.data[i] = root_mds.data[i] + superblock.datablocks_size;
+        root_mds.data[i] = root_mds.data[i-1] + superblock.datablocks_size;
     }
-
+    write(cfs_file, &root_mds, sizeof(root_mds));
+    printf("offset mds %d position is %d\n", superblock.root_mds_offset, position);
     close(cfs_file);
 
     free(name); free(pathname);
