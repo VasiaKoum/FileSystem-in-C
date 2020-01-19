@@ -100,61 +100,61 @@ void print_current_path(list_node **current){
 
 /**********************************************************************************************************************/
 
-void add_to_bitmap(int offset,int cfs_file){
+void add_to_bitmap(int offset, int cfs_file){
     int record_packet = 0, cfs_place = 0, bitmap_byte_place = 0, bitmap_bit_place = 0;
     lseek(cfs_file, 0, SEEK_SET);
     Superblock *superblock = malloc(sizeof(Superblock));
     read(cfs_file, superblock, sizeof(Superblock));
 
-    Bitmap *bitmap = malloc(sizeof(bitmap));
-    read(cfs_file, bitmap,sizeof(bitmap));
+    Bitmap *bitmap = malloc(sizeof(Bitmap));
+    read(cfs_file, bitmap, sizeof(Bitmap));
     record_packet = superblock->metadata_size + (superblock->datablocks_size)*DATABLOCK_NUM;
 
     offset = offset - sizeof(Superblock) - sizeof(Bitmap);
     cfs_place = offset/record_packet;
+
     bitmap_byte_place = cfs_place/8;
     bitmap_bit_place = cfs_place%8;
     unsigned char one = 1;
     one = one << bitmap_bit_place;
+
+    printf("offset: %d cfs_place: %d bitmap_bit_place: %d bitmap_byte_place: %d\n",
+    offset, cfs_place, bitmap_bit_place, bitmap_byte_place);
+
     bitmap->array[bitmap_byte_place] = bitmap->array[bitmap_byte_place]|one;
-    printf("to %d byte tou bitmap: %d\n",bitmap_byte_place,bitmap->array[bitmap_byte_place]);
+    printf("to %d byte tou bitmap: %d\n", bitmap_byte_place, bitmap->array[bitmap_byte_place]);
 
     lseek(cfs_file, sizeof(Superblock), SEEK_SET);
-    write(cfs_file, bitmap, sizeof(bitmap));
+    write(cfs_file, bitmap, sizeof(Bitmap));
 
     free(bitmap);
     free(superblock);
 }
 
 int get_space(int cfs_file){
-    int i = 0, bitmap_bit_place = 0, record_packet = 0, zero = 0;
-    int cfs_place = 0, offset = 0;
+    int i = 0, bitmap_bit_place = 0, record_packet = 0, cfs_place = 0, offset = 0;
     lseek(cfs_file, 0, SEEK_SET);
+
     Superblock *superblock = malloc(sizeof(Superblock));
     read(cfs_file, superblock, sizeof(Superblock));
     record_packet = superblock->metadata_size + (superblock->datablocks_size)*DATABLOCK_NUM;
 
-    Bitmap *bitmap = malloc(sizeof(bitmap));
-    read(cfs_file, bitmap,sizeof(bitmap));
+    Bitmap *bitmap = malloc(sizeof(Bitmap));
+    read(cfs_file, bitmap, sizeof(Bitmap));
 
-    while(bitmap->array[i] == 255){
-        i++;
-        printf("epanalipsi 1");
-    }
-    printf("edw to byte %d tou bitmap: %d \n",i,bitmap->array[i]);
-    //checkare auto to simeio an einai komple i logiki giati me xalaei
-    zero = 0;
-    unsigned char a = ~(bitmap->array[i]);
+    while(bitmap->array[i] == 255) i++;
+
+    unsigned char a = bitmap->array[i];
     int j = 0;
     while(a != 0 && j < 8){
-        a << 1;
+        a = a >> 1;
         j++;
     }
     cfs_place = i*8 + j;
-    ////////////////////////////////////////
+
     offset = cfs_place*record_packet + sizeof(Superblock) + sizeof(Bitmap);
-    free(superblock);
-    free(bitmap);
+
+    free(superblock); free(bitmap);
     return offset;
 }
 
@@ -236,13 +236,14 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
 
 int cfs_workwith(char *filename, list_node **current){
     int cfs_file=-1;
-    if((cfs_file = open(filename, O_RDONLY))<0) perror("Unable to open file.");
+    if((cfs_file = open(filename, O_RDWR))<0) perror("Unable to open file.");
     else{
         lseek(cfs_file, 0, SEEK_SET);
         unsigned int mds_offset, nodeid, offset;
         char *filename;
         Superblock *superblock = malloc(sizeof(Superblock));
         MDS *mds = malloc(sizeof(MDS));
+
         read(cfs_file, superblock, sizeof(Superblock));
         mds_offset = superblock->root_mds_offset;
 
@@ -262,10 +263,9 @@ int cfs_workwith(char *filename, list_node **current){
 void cfs_mkdir(char *dirnames, int cfs_file){
     if(cfs_file>0){
         printf("In cfs_mkdir\n");
-        add_to_bitmap(sizeof(Superblock)+sizeof(Bitmap),cfs_file);
-        printf("to prwto free offset %d/n",get_space(cfs_file));
+        add_to_bitmap(sizeof(Superblock)+sizeof(Bitmap), cfs_file);
+        printf("to prwto free offset %d\n",get_space(cfs_file));
         // delete_from_bitmap(int offset,int cfs_file);
-
 
     }
     else printf("Execute first cfs_workwith.\n");
