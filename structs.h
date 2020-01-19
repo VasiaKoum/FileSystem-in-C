@@ -29,7 +29,7 @@ typedef struct{
 } Superblock;
 
 typedef struct{
-	unsigned char *array;
+	unsigned char array[BITMAP_SIZE];
 } Bitmap;
 
 typedef struct list_node{

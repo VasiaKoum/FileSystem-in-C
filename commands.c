@@ -12,7 +12,6 @@
 #define MAX_FILE_SIZE 3000
 #define MAX_FILES_PER_DIR 10
 
-
 int edit_commands(char *command,int cfs_file, list_node **current){
     if (strncmp(command, (char*)"cfs_create ", 11)==0 && strlen(command)>12) {
 		char *check_options = &(command[11]);
@@ -101,12 +100,15 @@ void print_current_path(list_node **current){
 
 /**********************************************************************************************************************/
 
-void add_to_bitmap(Bitmap* bitmap, int offset,int cfs_file){
+void add_to_bitmap(int offset,int cfs_file){
     int record_packet = 0, cfs_place = 0, bitmap_byte_place = 0, bitmap_bit_place = 0;
     lseek(cfs_file, 0, SEEK_SET);
     Superblock *superblock = malloc(sizeof(Superblock));
     read(cfs_file, superblock, sizeof(Superblock));
-    record_packet = superblock->metadata_size + superblock->datablocks_size*DATABLOCK_NUM;
+
+    Bitmap *bitmap = malloc(sizeof(bitmap));
+    read(cfs_file, bitmap,sizeof(bitmap));
+    record_packet = superblock->metadata_size + (superblock->datablocks_size)*DATABLOCK_NUM;
 
     offset = offset - sizeof(Superblock) - sizeof(Bitmap);
     cfs_place = offset/record_packet;
@@ -115,41 +117,57 @@ void add_to_bitmap(Bitmap* bitmap, int offset,int cfs_file){
     unsigned char one = 1;
     one = one << bitmap_bit_place;
     bitmap->array[bitmap_byte_place] = bitmap->array[bitmap_byte_place]|one;
+    printf("to %d byte tou bitmap: %d\n",bitmap_byte_place,bitmap->array[bitmap_byte_place]);
 
+    lseek(cfs_file, sizeof(Superblock), SEEK_SET);
+    write(cfs_file, bitmap, sizeof(bitmap));
+
+    free(bitmap);
     free(superblock);
 }
 
-int get_space(Bitmap* bitmap,int cfs_file){
+int get_space(int cfs_file){
     int i = 0, bitmap_bit_place = 0, record_packet = 0, zero = 0;
     int cfs_place = 0, offset = 0;
     lseek(cfs_file, 0, SEEK_SET);
     Superblock *superblock = malloc(sizeof(Superblock));
     read(cfs_file, superblock, sizeof(Superblock));
-    record_packet = superblock->metadata_size + superblock->datablocks_size*DATABLOCK_NUM;
+    record_packet = superblock->metadata_size + (superblock->datablocks_size)*DATABLOCK_NUM;
 
-    while(bitmap->array[i] < 255){
+    Bitmap *bitmap = malloc(sizeof(bitmap));
+    read(cfs_file, bitmap,sizeof(bitmap));
+
+    while(bitmap->array[i] == 255){
         i++;
+        printf("epanalipsi 1");
     }
-
+    printf("edw to byte %d tou bitmap: %d \n",i,bitmap->array[i]);
+    //checkare auto to simeio an einai komple i logiki giati me xalaei
     zero = 0;
     unsigned char a = ~(bitmap->array[i]);
     int j = 0;
-    while(a != 0){
+    while(a != 0 && j < 8){
         a << 1;
         j++;
     }
     cfs_place = i*8 + j;
+    ////////////////////////////////////////
     offset = cfs_place*record_packet + sizeof(Superblock) + sizeof(Bitmap);
     free(superblock);
+    free(bitmap);
     return offset;
 }
 
-void delete_from_bitmap(Bitmap* bitmap, int offset,int cfs_file){
+void delete_from_bitmap(int offset,int cfs_file){
     int record_packet = 0, cfs_place = 0, bitmap_byte_place = 0, bitmap_bit_place = 0;
     lseek(cfs_file, 0, SEEK_SET);
     Superblock *superblock = malloc(sizeof(Superblock));
     read(cfs_file, superblock, sizeof(Superblock));
-    record_packet = superblock->metadata_size + superblock->datablocks_size*DATABLOCK_NUM;
+
+    Bitmap *bitmap = malloc(sizeof(bitmap));
+    read(cfs_file, bitmap,sizeof(bitmap));
+
+    record_packet = superblock->metadata_size + (superblock->datablocks_size)*DATABLOCK_NUM;
 
     offset = offset - sizeof(Superblock) - sizeof(Bitmap);
     cfs_place = offset/record_packet;
@@ -160,6 +178,10 @@ void delete_from_bitmap(Bitmap* bitmap, int offset,int cfs_file){
     one = ~one;
     bitmap->array[bitmap_byte_place] = bitmap->array[bitmap_byte_place]&one;
 
+    lseek(cfs_file, sizeof(Superblock), SEEK_SET);
+    write(cfs_file, bitmap, sizeof(bitmap));
+
+    free(bitmap);
     free(superblock);
 }
 
@@ -184,8 +206,7 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
 
     // char *path = realpath(pathname, NULL);
     Bitmap bitmap;
-    bitmap.array = malloc(sizeof(char)*1);
-    memset(bitmap.array, 0, 1);
+    memset(bitmap.array, 0, BITMAP_SIZE);
 
     Superblock superblock;
     superblock.datablocks_size = datablock_size;
@@ -241,6 +262,11 @@ int cfs_workwith(char *filename, list_node **current){
 void cfs_mkdir(char *dirnames, int cfs_file){
     if(cfs_file>0){
         printf("In cfs_mkdir\n");
+        add_to_bitmap(sizeof(Superblock)+sizeof(Bitmap),cfs_file);
+        printf("to prwto free offset %d/n",get_space(cfs_file));
+        // delete_from_bitmap(int offset,int cfs_file);
+
+
     }
     else printf("Execute first cfs_workwith.\n");
 }
