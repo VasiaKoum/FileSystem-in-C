@@ -15,11 +15,11 @@ int main(){
     int cfs_file=-1;
     list_node *current=NULL;
     char input[INPUT_BUF];
-    printf(">"); fgets(input, INPUT_BUF, stdin);
+    print_current_path(&current);printf(">"); fgets(input, INPUT_BUF, stdin);
     while(strcmp(input, "exit\n")){
         cfs_file = edit_commands(input, cfs_file, &current);
         memset(input, 0, INPUT_BUF);
-        printf(">"); fgets(input, INPUT_BUF, stdin);
+        print_current_path(&current);printf(">"); fgets(input, INPUT_BUF, stdin);
     }
     back_to_path(&current, 0, -1);
 }

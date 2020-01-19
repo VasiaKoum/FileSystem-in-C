@@ -95,7 +95,7 @@ void print_current_path(list_node **current){
         memset(current_path, 0, sizeof(char)*FILENAME_SIZE);
         tmp = tmp->parent_dir;
     }
-    printf("%s\n", full_path);
+    printf("%s", full_path);
 }
 
 /**********************************************************************************************************************/
@@ -275,7 +275,8 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
         while(dirs!=NULL){
             lseek(cfs_file, 0, SEEK_SET);
             free_offset = get_space(cfs_file);
-            mds.nodeid = superblock->latest_nodeid+1;
+            superblock->latest_nodeid++;
+            mds.nodeid = superblock->latest_nodeid;
             mds.offset = free_offset;
             mds.type = 2;
             mds.parent_nodeid = (*current)->nodeid;
@@ -330,6 +331,7 @@ void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames){
 void cfs_pwd(int cfs_file, list_node **current){
     if(cfs_file>0){
         print_current_path(current);
+        printf("\n");
     }
     else printf("Execute first cfs_workwith.\n");
 }
