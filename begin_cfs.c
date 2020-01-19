@@ -21,5 +21,5 @@ int main(){
         memset(input, 0, INPUT_BUF);
         printf(">"); fgets(input, INPUT_BUF, stdin);
     }
-    back_to_path(&current, 0);
+    back_to_path(&current, 0, -1);
 }

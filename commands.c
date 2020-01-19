@@ -101,6 +101,70 @@ void print_current_path(list_node **current){
 
 /**********************************************************************************************************************/
 
+void add_to_bitmap(Bitmap* bitmap, int offset,int cfs_file){
+    int record_packet = 0, cfs_place = 0, bitmap_byte_place = 0, bitmap_bit_place = 0;
+    lseek(cfs_file, 0, SEEK_SET);
+    Superblock *superblock = malloc(sizeof(Superblock));
+    read(cfs_file, superblock, sizeof(Superblock));
+    record_packet = superblock->metadata_size + superblock->datablocks_size*DATABLOCK_NUM;
+
+    offset = offset - sizeof(Superblock) - sizeof(Bitmap);
+    cfs_place = offset/record_packet;
+    bitmap_byte_place = cfs_place/8;
+    bitmap_bit_place = cfs_place%8;
+    unsigned char one = 1;
+    one = one << bitmap_bit_place;
+    bitmap->array[bitmap_byte_place] = bitmap->array[bitmap_byte_place]|one;
+
+    free(superblock);
+}
+
+int get_space(Bitmap* bitmap,int cfs_file){
+    int i = 0, bitmap_bit_place = 0, record_packet = 0, zero = 0;
+    int cfs_place = 0, offset = 0;
+    lseek(cfs_file, 0, SEEK_SET);
+    Superblock *superblock = malloc(sizeof(Superblock));
+    read(cfs_file, superblock, sizeof(Superblock));
+    record_packet = superblock->metadata_size + superblock->datablocks_size*DATABLOCK_NUM;
+
+    while(bitmap->array[i] < 255){
+        i++;
+    }
+
+    zero = 0;
+    unsigned char a = ~(bitmap->array[i]);
+    int j = 0;
+    while(a != 0){
+        a << 1;
+        j++;
+    }
+    cfs_place = i*8 + j;
+    offset = cfs_place*record_packet + sizeof(Superblock) + sizeof(Bitmap);
+    free(superblock);
+    return offset;
+}
+
+void delete_from_bitmap(Bitmap* bitmap, int offset,int cfs_file){
+    int record_packet = 0, cfs_place = 0, bitmap_byte_place = 0, bitmap_bit_place = 0;
+    lseek(cfs_file, 0, SEEK_SET);
+    Superblock *superblock = malloc(sizeof(Superblock));
+    read(cfs_file, superblock, sizeof(Superblock));
+    record_packet = superblock->metadata_size + superblock->datablocks_size*DATABLOCK_NUM;
+
+    offset = offset - sizeof(Superblock) - sizeof(Bitmap);
+    cfs_place = offset/record_packet;
+    bitmap_byte_place = cfs_place/8;
+    bitmap_bit_place = cfs_place%8;
+    unsigned char one = 1;
+    one = one << bitmap_bit_place;
+    one = ~one;
+    bitmap->array[bitmap_byte_place] = bitmap->array[bitmap_byte_place]&one;
+
+    free(superblock);
+}
+
+/************************************************************************************************************************/
+
 void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_file_size, int max_files_in_dirs){
     // printf("In cfs_create with: %s %d %d %d %d\n", cfs_name, datablock_size, filenames_size, max_file_size, max_files_in_dirs);
     int cfs_file;
