@@ -39,12 +39,12 @@ int edit_commands(char *command,int cfs_file, list_node **current){
     else if(strncmp(command, (char*)"cfs_mkdir ", 10)==0 && strlen(command)>11) {
         char *check_dirs = &(command[10]);
         char *dirs = strtok(check_dirs, "\n");
-        cfs_mkdir(dirs, cfs_file);
+        cfs_mkdir(cfs_file, dirs, current);
     }
     else if(strncmp(command, (char*)"cfs_touch ", 10)==0 && strlen(command)>11) {
         char *check_options = &(command[10]);
         char *options = strtok(check_options, "\n");
-        cfs_touch(1, 1, "vasia", cfs_file);
+        cfs_touch(cfs_file, 1, 1, "vasia");
     }
     else if(strncmp(command, (char*)"cfs_pwd", 7)==0) {
         cfs_pwd(cfs_file, current);
@@ -229,8 +229,10 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
         root_mds.data.datablocks[i] = root_mds.data.datablocks[i-1] + superblock.datablocks_size;
     }
     write(cfs_file, &root_mds, sizeof(root_mds));
-    close(cfs_file);
 
+    add_to_bitmap(sizeof(Superblock)+sizeof(Bitmap), cfs_file);
+
+    close(cfs_file);
     free(name); free(pathname);
 }
 
@@ -260,18 +262,43 @@ int cfs_workwith(char *filename, list_node **current){
     return cfs_file;
 }
 
-void cfs_mkdir(char *dirnames, int cfs_file){
+void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
     if(cfs_file>0){
-        printf("In cfs_mkdir\n");
-        add_to_bitmap(sizeof(Superblock)+sizeof(Bitmap), cfs_file);
-        printf("to prwto free offset %d\n",get_space(cfs_file));
-        // delete_from_bitmap(int offset,int cfs_file);
+        lseek(cfs_file, 0, SEEK_SET);
+        Superblock *superblock = malloc(sizeof(Superblock));
+        read(cfs_file, superblock, sizeof(Superblock));
 
+        MDS mds;
+        int free_offset;
+        char *dirs = dirnames;
+        strtok(dirs, " ");
+        while(dirs!=NULL){
+            lseek(cfs_file, 0, SEEK_SET);
+            free_offset = get_space(cfs_file);
+            mds.nodeid = superblock->latest_nodeid+1;
+            mds.offset = free_offset;
+            mds.type = 2;
+            mds.parent_nodeid = (*current)->nodeid;
+            mds.parent_offset = (*current)->offset;
+            strcpy(mds.filename, dirs);
+            mds.creation_time = time(0); mds.access_time = time(0); mds.modification_time = time(0);
+            mds.data.datablocks[0] = mds.offset + superblock->metadata_size;
+            // for(int i = 1; i < DATABLOCK_NUM; i++){
+            //     mds.data.datablocks[i] = mds.data.datablocks[i-1] + superblock->datablocks_size;
+            // }
+            // write(cfs_file, &mds, sizeof(mds));
+            //
+            // add_to_bitmap(free_offset, cfs_file);
+
+            dirs = strtok(NULL, " ");
+        }
+        // delete_from_bitmap(int offset,int cfs_file);
+        free(superblock);
     }
     else printf("Execute first cfs_workwith.\n");
 }
 
-void cfs_touch(bool time_acc, bool time_edit, char *filenames, int cfs_file){
+void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames){
     int fd_current;
     if(cfs_file>0){
 
