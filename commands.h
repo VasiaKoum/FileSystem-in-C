@@ -6,7 +6,7 @@ void back_to_path(list_node**, unsigned int, int);
 void print_current_path(list_node**);
 int edit_commands(char*, int, list_node**);
 void cfs_create(char*, int , int , int, int);
-int cfs_workwith(char*, list_node**);
+int cfs_workwith(int, char*, list_node**);
 void cfs_mkdir(int, char*, list_node**);
 void cfs_touch(int, bool, bool, char*);
 void cfs_pwd(int, list_node**);

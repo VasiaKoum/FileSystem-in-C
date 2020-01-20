@@ -34,7 +34,7 @@ int edit_commands(char *command,int cfs_file, list_node **current){
     else if(strncmp(command, (char*)"cfs_workwith ", 13)==0 && strlen(command)>14) {
 		char *check_file = &(command[13]);
 		char *file = strtok(check_file, "\n");
-        cfs_file = cfs_workwith(file, current);
+        cfs_file = cfs_workwith(cfs_file, file, current);
 	}
     else if(strncmp(command, (char*)"cfs_mkdir ", 10)==0 && strlen(command)>11) {
         char *check_dirs = &(command[10]);
@@ -75,12 +75,10 @@ void back_to_path(list_node **current, unsigned int nodeid, int back_depth){
     list_node *delete=*current, *tmp=*current;
     bool found = false;
     while((tmp!=NULL) && (!found)){
-        if (tmp->nodeid!=nodeid){
-            (*current) = &(*(delete->parent_dir));
-            free(delete);
-            tmp=*current;
-        }
-        else found = true;
+        if (tmp->nodeid==nodeid) found = true;
+        (*current) = &(*(delete->parent_dir));
+        free(delete);
+        tmp=*current;
     }
 }
 
@@ -117,12 +115,9 @@ void add_to_bitmap(int offset, int cfs_file){
     bitmap_bit_place = cfs_place%8;
     unsigned char one = 1;
     one = one << bitmap_bit_place;
-
-    printf("offset: %d cfs_place: %d bitmap_bit_place: %d bitmap_byte_place: %d\n",
-    offset, cfs_place, bitmap_bit_place, bitmap_byte_place);
-
+    // printf("offset: %d cfs_place: %d bitmap_bit_place: %d bitmap_byte_place: %d\n",
+    // offset, cfs_place, bitmap_bit_place, bitmap_byte_place);
     bitmap->array[bitmap_byte_place] = bitmap->array[bitmap_byte_place]|one;
-    printf("to %d byte tou bitmap: %d\n", bitmap_byte_place, bitmap->array[bitmap_byte_place]);
 
     lseek(cfs_file, sizeof(Superblock), SEEK_SET);
     write(cfs_file, bitmap, sizeof(Bitmap));
@@ -230,15 +225,28 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
     }
     write(cfs_file, &root_mds, sizeof(root_mds));
 
+    data_type data;
+    data.nodeid = 0;
+    data.offset = 0;
+    memset(data.filename, 0, FILENAME_SIZE);
+    data.active = false;
+
+    for(int i = 0; i < DATABLOCK_NUM; i++){
+        lseek(cfs_file, root_mds.data.datablocks[i], SEEK_SET);
+        for (int j = 0; j < superblock.datablocks_size/(sizeof(data_type)); j++) {
+            write(cfs_file, &data, sizeof(data_type));
+        }
+    }
+
     add_to_bitmap(sizeof(Superblock)+sizeof(Bitmap), cfs_file);
 
     close(cfs_file);
     free(name); free(pathname);
 }
 
-int cfs_workwith(char *filename, list_node **current){
-    int cfs_file=-1;
-    if((cfs_file = open(filename, O_RDWR))<0) perror("Unable to open file.");
+int cfs_workwith(int cfs_file, char *filename, list_node **current){
+    if(cfs_file!=-1) { close(cfs_file); back_to_path(current, 0, -1); }
+    if((cfs_file = open(filename, O_RDWR))<0) { perror("Unable to open file."); return -1;}
     else{
         lseek(cfs_file, 0, SEEK_SET);
         unsigned int mds_offset, nodeid, offset;
@@ -255,8 +263,7 @@ int cfs_workwith(char *filename, list_node **current){
         offset = mds->offset;
         filename = mds->filename;
         add_dir_to_path(current, nodeid, offset, filename);
-
-        printf("Now working on file %s\n", filename);
+        // printf("Now working on file %s\n", filename);
         free(superblock); free(mds);
     }
     return cfs_file;
@@ -273,8 +280,14 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
         char *dirs = dirnames;
         strtok(dirs, " ");
         while(dirs!=NULL){
+
+            /* update parent blocks */
+            lseek(cfs_file, (*current)->offset, SEEK_SET);
+
+
             lseek(cfs_file, 0, SEEK_SET);
             free_offset = get_space(cfs_file);
+            printf("here free_offset %d\n", free_offset);
             superblock->latest_nodeid++;
             mds.nodeid = superblock->latest_nodeid;
             mds.offset = free_offset;

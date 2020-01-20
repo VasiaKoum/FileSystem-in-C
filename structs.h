@@ -1,4 +1,5 @@
 #include <time.h>
+#include <stdbool.h>
 #define DATABLOCK_NUM 5
 #define FILENAME_SIZE 200
 #define BITMAP_SIZE 512
@@ -38,3 +39,10 @@ typedef struct list_node{
 	char filename[FILENAME_SIZE];
 	struct list_node *parent_dir;
 }list_node;
+
+typedef struct {
+	unsigned int nodeid;
+	unsigned int offset;
+	char filename[FILENAME_SIZE];
+	bool active;
+}data_type;
