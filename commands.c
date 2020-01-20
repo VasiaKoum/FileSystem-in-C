@@ -275,7 +275,9 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
         Superblock *superblock = malloc(sizeof(Superblock));
         read(cfs_file, superblock, sizeof(Superblock));
 
+        data_type data;
         MDS mds;
+        MDS currentMDS;
         int free_offset;
         char *dirs = dirnames;
         strtok(dirs, " ");
@@ -297,12 +299,46 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
             strcpy(mds.filename, dirs);
             mds.creation_time = time(0); mds.access_time = time(0); mds.modification_time = time(0);
             mds.data.datablocks[0] = mds.offset + superblock->metadata_size;
-            // for(int i = 1; i < DATABLOCK_NUM; i++){
-            //     mds.data.datablocks[i] = mds.data.datablocks[i-1] + superblock->datablocks_size;
-            // }
-            // write(cfs_file, &mds, sizeof(mds));
-            //
-            // add_to_bitmap(free_offset, cfs_file);
+            //xaris
+            for(int i = 1; i < DATABLOCK_NUM; i++){
+                mds.data.datablocks[i] = mds.data.datablocks[i-1] + superblock.datablocks_size;
+            }
+            lseek(cfs_file, mds.offset, SEEK_SET);
+            write(cfs_file, &mds, sizeof(mds));
+
+            data.nodeid = 0;
+            data.offset = 0;
+            memset(data.filename, 0, FILENAME_SIZE);
+            data.active = false;
+
+            for(int i = 0; i < DATABLOCK_NUM; i++){
+                lseek(cfs_file, mds.data.datablocks[i], SEEK_SET);
+                for (int j = 0; j < superblock.datablocks_size/(sizeof(data_type)); j++) {
+                    write(cfs_file, &data, sizeof(data_type));
+                }
+            }
+
+            lseek(cfs_file, (*current)->offset, SEEK_SET);
+            read(cfs_file, &currentMDS, superblock->metadata_size);
+
+            for(int i = 0; i < DATABLOCK_NUM; i++){
+                lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
+                for (int j = 0; j < superblock.datablocks_size/(sizeof(data_type)); j++) {
+                    read(cfs_file, &data, sizeof(data_type));
+                    if(data.active == false){
+                        data.nodeid = mds.nodeid;
+                        data.offset = mds.offset;
+                        strcpy(data.filename, mds.filename);
+                        data.active = true;
+                        lseek(cfs_file, -sizeof(data_type), SEEK_CUR);
+                        write(cfs_file, &data, sizeof(data_type));
+                        i = DATABLOCK_NUM;
+                        break;
+                    }
+                }
+            }
+            add_to_bitmap(mds.offset, cfs_file);
+            //mexri edw
 
             dirs = strtok(NULL, " ");
         }
