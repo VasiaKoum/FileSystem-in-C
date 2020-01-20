@@ -387,7 +387,7 @@ void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, lis
                 }
             }
             if(!exists_already && empty_space){
-
+                //make mds
                 free_offset = get_space(cfs_file);
                 printf("here free_offset %d\n", free_offset);
                 superblock->latest_nodeid++;
