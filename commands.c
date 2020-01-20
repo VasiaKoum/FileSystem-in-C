@@ -283,10 +283,6 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
         strtok(dirs, " ");
         while(dirs!=NULL){
 
-            /* update parent blocks */
-            lseek(cfs_file, (*current)->offset, SEEK_SET);
-
-
             lseek(cfs_file, 0, SEEK_SET);
             free_offset = get_space(cfs_file);
             printf("here free_offset %d\n", free_offset);
@@ -303,8 +299,12 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
             for(int i = 1; i < DATABLOCK_NUM; i++){
                 mds.data.datablocks[i] = mds.data.datablocks[i-1] + superblock.datablocks_size;
             }
+
             lseek(cfs_file, mds.offset, SEEK_SET);
             write(cfs_file, &mds, sizeof(mds));
+
+            lseek(cfs_file, 0, SEEK_SET);
+            write(cfs_file, superblock, sizeof(Superblock));
 
             data.nodeid = 0;
             data.offset = 0;
@@ -318,6 +318,7 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
                 }
             }
 
+            /* update parent blocks */
             lseek(cfs_file, (*current)->offset, SEEK_SET);
             read(cfs_file, &currentMDS, superblock->metadata_size);
 
@@ -348,14 +349,91 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
     else printf("Execute first cfs_workwith.\n");
 }
 
-void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames){
+void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, list_node **current){
     int fd_current;
     if(cfs_file>0){
+        lseek(cfs_file, 0, SEEK_SET);
+        Superblock *superblock = malloc(sizeof(Superblock));
+        read(cfs_file, superblock, sizeof(Superblock));
 
         printf("In cfs_touch\n");
+        data_type data;
+        MDS mds;
+        MDS currentMDS;
+        strtok(files, " ");
+        while(files != NULL){
+            bool exists_already = false;
+            bool empty_space = false;
+            lseek(cfs_file, (*current)->offset, SEEK_SET);
+            read(cfs_file, &currentMDS, superblock->metadata_size);
+            //check if name exists!
+            for(int i = 0; i < DATABLOCK_NUM; i++){
+                lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
+                for (int j = 0; j < superblock.datablocks_size/(sizeof(data_type)); j++){
+                    read(cfs_file, &data, sizeof(data_type));
+                    if(data.active == true){
+                        if(strcmp(data.filename, files) == 0){
+                            ///options
+                              ///EDW VAZOUME TA OPTIONS
+                            ///////
+                            printf("Name %s exists already!\n",files);
+                            exists_already = true;
+                            i = DATABLOCK_NUM;
+                            break;
+                        }
+                    }else{
+                        empty_space = true;
+                    }
+                }
+            }
+            if(!exists_already && empty_space){
 
+                free_offset = get_space(cfs_file);
+                printf("here free_offset %d\n", free_offset);
+                superblock->latest_nodeid++;
+                mds.nodeid = superblock->latest_nodeid;
+                mds.offset = free_offset;
+                mds.type = 1;
+                mds.parent_nodeid = (*current)->nodeid;
+                mds.parent_offset = (*current)->offset;
+                strcpy(mds.filename, files);
+                mds.creation_time = time(0); mds.access_time = time(0); mds.modification_time = time(0);
+                mds.data.datablocks[0] = mds.offset + superblock->metadata_size;
+                for(int i = 1; i < DATABLOCK_NUM; i++){
+                    mds.data.datablocks[i] = mds.data.datablocks[i-1] + superblock.datablocks_size;
+                }
+                lseek(cfs_file, mds.offset, SEEK_SET);
+                write(cfs_file, &mds, sizeof(mds));
+
+                lseek(cfs_file, 0, SEEK_SET);
+                write(cfs_file, superblock, sizeof(Superblock));
+
+                //insert in current dir
+                for(int i = 0; i < DATABLOCK_NUM; i++){
+                    lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
+                    for (int j = 0; j < superblock.datablocks_size/(sizeof(data_type)); j++){
+                        read(cfs_file, &data, sizeof(data_type));
+                        if(data.active == false){
+                            data.nodeid = mds.nodeid;
+                            data.offset = mds.offset;
+                            strcpy(data.filename, mds.filename);
+                            data.active = true;
+                            lseek(cfs_file, -sizeof(data_type), SEEK_CUR);
+                            write(cfs_file, &data, sizeof(data_type));
+                            i = DATABLOCK_NUM;
+                            break;
+                        }
+                    }
+                }
+
+            }
+
+            files = strtok(NULL, " ");
+        }
         ///////1.vlepw pou eimai stin LISTA
         ///////2.tsekarw ean uparxei sto dir to filename[0](1o filename)
+
+
         //3.ean den uparxei
             //if xwraei
                 // MDS mds;
@@ -371,8 +449,7 @@ void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames){
                 // }
                 // write(cfs_file, &root_mds, sizeof(root_mds));
 
-
-
+        free(superblock);
     }
     else printf("Execute first cfs_workwith.\n");
 }
