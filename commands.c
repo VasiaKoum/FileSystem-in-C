@@ -450,13 +450,35 @@ void cfs_cd(int cfs_file, list_node **current, char *path){
         full_path = strtok(NULL, "/");
     }
 }
+
 void cfs_ls(int cfs_file, list_node **current, char *path){
+
+    lseek(cfs_file, 0, SEEK_SET);
+    Superblock *superblock = malloc(sizeof(Superblock));
+    read(cfs_file, superblock, sizeof(Superblock));
+
+    printf("In ls\n");
+    data_type data;
+    MDS currentMDS;
     char *full_path = path;
     strtok(full_path, "/");
     while(full_path!=NULL){
         printf("dir: %s\n", full_path);
+        lseek(cfs_file, (*current)->offset, SEEK_SET);
+        read(cfs_file, &currentMDS, superblock->metadata_size);
+        //check if name exists!
+        for(int i = 0; i < DATABLOCK_NUM; i++){
+            lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
+            for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++){
+                read(cfs_file, &data, sizeof(data_type));
+                if(data.active == true){
+                    printf("\n",files);
+                }
+            }
+        }
         full_path = strtok(NULL, "/");
     }
+    free(superblock);
 }
 
 int find_path(int cfs_file, list_node **current, char *path){
