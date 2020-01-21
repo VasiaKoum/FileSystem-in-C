@@ -470,6 +470,14 @@ void cfs_cd(int cfs_file, list_node **current, char *path){
         full_path = strtok(NULL, "/");
     }
 }
+void cfs_ls(int cfs_file, list_node **current, char *path){
+    char *full_path = path;
+    strtok(full_path, "/");
+    while(full_path!=NULL){
+        printf("dir: %s\n", full_path);
+        full_path = strtok(NULL, "/");
+    }
+}
 
 int find_path(int cfs_file, list_node **current, char *path){
 

@@ -8,7 +8,7 @@ int edit_commands(char*, int, list_node**);
 void cfs_create(char*, int , int , int, int);
 int cfs_workwith(int, char*, list_node**);
 void cfs_mkdir(int, char*, list_node**);
-void cfs_touch(int, bool, bool, char*);
+void cfs_touch(int, bool, bool, char*, list_node**);
 void cfs_pwd(int, list_node**);
 void cfs_cd(int, list_node**, char*);
 int find_path(int, list_node**, char *);
