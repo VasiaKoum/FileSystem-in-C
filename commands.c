@@ -77,8 +77,10 @@ void add_dir_to_path(list_node **current, unsigned int nodeid, unsigned int offs
 void back_to_path(list_node **current, unsigned int nodeid, int back_depth){
     list_node *delete=*current, *tmp=*current;
     bool found = false;
+    int i=1;
     while((tmp!=NULL) && (!found)){
-        if (tmp->nodeid==nodeid) found = true;
+        if(back_depth==-1) { if (tmp->nodeid==nodeid) found = true; }
+        else { if(i<back_depth) i++; else found = true; }
         (*current) = &(*(delete->parent_dir));
         free(delete);
         tmp=*current;
@@ -241,7 +243,7 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
             write(cfs_file, &data, sizeof(data_type));
         }
     }
-    printf("a file is sizeof %lu\n", sizeof(root_mds)+DATABLOCK_NUM*superblock.datablocks_size);
+    // printf("a file is sizeof %lu\n", sizeof(root_mds)+DATABLOCK_NUM*superblock.datablocks_size);
     add_to_bitmap(sizeof(Superblock)+sizeof(Bitmap), cfs_file);
 
     close(cfs_file);
@@ -351,10 +353,11 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
 void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, list_node **current){
     char *files = filenames;
     int fd_current;
+
+    printf("In cfs_touch\n");
+
     if(cfs_file>0){
-
         Superblock *superblock = malloc(sizeof(Superblock));
-
         printf("In cfs_touch\n");
         int free_offset;
         strtok(files, " ");
@@ -390,7 +393,6 @@ void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, lis
             if(!exists_already && empty_space){
                 //make mds
                 free_offset = get_space(cfs_file);
-                printf("here free_offset %d\n", free_offset);
                 superblock->latest_nodeid++;
                 mds.nodeid = superblock->latest_nodeid;
                 mds.offset = free_offset;
@@ -443,12 +445,7 @@ void cfs_pwd(int cfs_file, list_node **current){
 }
 
 void cfs_cd(int cfs_file, list_node **current, char *path){
-    char *full_path = path;
-    strtok(full_path, "/");
-    while(full_path!=NULL){
-        printf("dir: %s\n", full_path);
-        full_path = strtok(NULL, "/");
-    }
+    find_path(cfs_file, current, path);
 }
 
 void cfs_ls(int cfs_file, list_node **current, char *path){
@@ -482,5 +479,52 @@ void cfs_ls(int cfs_file, list_node **current, char *path){
 }
 
 int find_path(int cfs_file, list_node **current, char *path){
-
+    int current_offset = 0;
+    if(cfs_file>0){
+        Superblock *superblock = malloc(sizeof(Superblock));
+        char *full_path = path;
+        strtok(full_path, "/");
+        while(full_path!=NULL){
+            if(strcmp(full_path, ".")==0){
+                printf("here .\n");
+            }
+            else if(strcmp(full_path, "..")==0){
+                back_to_path(current, 0, 1);
+            }
+            else{
+                int fd_current, free_offset;
+                data_type data;
+                MDS mds, currentMDS;
+                lseek(cfs_file, 0, SEEK_SET);
+                read(cfs_file, superblock, sizeof(Superblock));
+                bool exists_already = false;
+                lseek(cfs_file, (*current)->offset, SEEK_SET);
+                read(cfs_file, &currentMDS, superblock->metadata_size);
+                //check if name exists!
+                for(int i = 0; i < DATABLOCK_NUM; i++){
+                    lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
+                    for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++){
+                        read(cfs_file, &data, sizeof(data_type));
+                        if(data.active == true){
+                            if(strcmp(data.filename, full_path) == 0){
+                                if(currentMDS.type == 2){
+                                    add_dir_to_path(current, data.nodeid, data.offset, data.filename);
+                                    current_offset = (*current)->offset;
+                                }
+                                else printf("%s its not a dir.\n", full_path);
+                                exists_already = true;
+                                i = DATABLOCK_NUM;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if(!exists_already) printf("Dir %s not exist.\n", full_path);
+            }
+            full_path = strtok(NULL, "/");
+        }
+        free(superblock);
+    }
+    else printf("Execute first cfs_workwith.\n");
+    return current_offset;
 }
