@@ -120,8 +120,8 @@ void add_to_bitmap(int offset, int cfs_file){
     one = one << bitmap_bit_place;
     bitmap->array[bitmap_byte_place] = bitmap->array[bitmap_byte_place]|one;
 
-    printf("offset: %d cfs_place: %d bitmap_bit_place: %d bitmap_byte_place: %d\n",
-    offset, cfs_place, bitmap_bit_place, bitmap_byte_place);
+    // printf("offset: %d cfs_place: %d bitmap_bit_place: %d bitmap_byte_place: %d\n",
+    // offset, cfs_place, bitmap_bit_place, bitmap_byte_place);
 
     lseek(cfs_file, sizeof(Superblock), SEEK_SET);
     write(cfs_file, bitmap, sizeof(Bitmap));
@@ -472,7 +472,7 @@ void cfs_ls(int cfs_file, list_node **current, char *path){
             for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++){
                 read(cfs_file, &data, sizeof(data_type));
                 if(data.active == true){
-                    printf("\n",files);
+                    // printf("\n",files);
                 }
             }
         }
