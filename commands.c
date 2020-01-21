@@ -47,7 +47,7 @@ int edit_commands(char *command,int cfs_file, list_node **current){
     else if(strncmp(command, (char*)"cfs_touch ", 10)==0 && strlen(command)>11) {
         char *check_options = &(command[10]);
         char *options = strtok(check_options, "\n");
-        cfs_touch(cfs_file, 1, 1, "vasia", current);
+        cfs_touch(cfs_file, 1, 1, options, current);
     }
     else if(strncmp(command, (char*)"cfs_pwd", 7)==0) {
         cfs_pwd(cfs_file, current);
@@ -56,6 +56,9 @@ int edit_commands(char *command,int cfs_file, list_node **current){
         char *check_path = &(command[7]);
         char *path = strtok(check_path, "\n");
         cfs_cd(cfs_file, current, path);
+    }
+    else if(strncmp(command, (char*)"cfs_ls", 6)==0) {
+        cfs_ls(cfs_file, current, NULL);
     }
     else printf("Wrong command, type again.\n");
     return cfs_file;
@@ -288,7 +291,7 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
             read(cfs_file, superblock, sizeof(Superblock));
 
             free_offset = get_space(cfs_file);
-            printf("here free_offset %d\n", free_offset);
+
             superblock->latest_nodeid++;
             mds.nodeid = superblock->latest_nodeid;
             mds.offset = free_offset;
@@ -354,11 +357,8 @@ void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, lis
     char *files = filenames;
     int fd_current;
 
-    printf("In cfs_touch\n");
-
     if(cfs_file>0){
         Superblock *superblock = malloc(sizeof(Superblock));
-        printf("In cfs_touch\n");
         int free_offset;
         strtok(files, " ");
         while(files != NULL){
@@ -449,33 +449,36 @@ void cfs_cd(int cfs_file, list_node **current, char *path){
 }
 
 void cfs_ls(int cfs_file, list_node **current, char *path){
+    if(cfs_file>0){
+        Superblock *superblock = malloc(sizeof(Superblock));
+        char *full_path = path;
+        if (path == NULL) full_path = (*current)->filename;
+        else strtok(full_path, "/");
+        while(full_path!=NULL){
+            data_type data;
+            MDS currentMDS;
 
-    lseek(cfs_file, 0, SEEK_SET);
-    Superblock *superblock = malloc(sizeof(Superblock));
-    read(cfs_file, superblock, sizeof(Superblock));
+            lseek(cfs_file, 0, SEEK_SET);
+            Superblock *superblock = malloc(sizeof(Superblock));
+            read(cfs_file, superblock, sizeof(Superblock));
 
-    printf("In ls\n");
-    data_type data;
-    MDS currentMDS;
-    char *full_path = path;
-    strtok(full_path, "/");
-    while(full_path!=NULL){
-        printf("dir: %s\n", full_path);
-        lseek(cfs_file, (*current)->offset, SEEK_SET);
-        read(cfs_file, &currentMDS, superblock->metadata_size);
-        //check if name exists!
-        for(int i = 0; i < DATABLOCK_NUM; i++){
-            lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
-            for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++){
-                read(cfs_file, &data, sizeof(data_type));
-                if(data.active == true){
-                    // printf("\n",files);
+            lseek(cfs_file, (*current)->offset, SEEK_SET);
+            read(cfs_file, &currentMDS, superblock->metadata_size);
+            //check if name exists!
+            for(int i = 0; i < DATABLOCK_NUM; i++){
+                lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
+                for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++){
+                    read(cfs_file, &data, sizeof(data_type));
+                    if(data.active == true){
+                         printf("%s\n",data.filename);
+                    }
                 }
             }
+            full_path = strtok(NULL, "/");
         }
-        full_path = strtok(NULL, "/");
+        free(superblock);
     }
-    free(superblock);
+    else printf("Execute first cfs_workwith.\n");
 }
 
 int find_path(int cfs_file, list_node **current, char *path){
@@ -507,7 +510,9 @@ int find_path(int cfs_file, list_node **current, char *path){
                         read(cfs_file, &data, sizeof(data_type));
                         if(data.active == true){
                             if(strcmp(data.filename, full_path) == 0){
-                                if(currentMDS.type == 2){
+                                lseek(cfs_file, data.offset, SEEK_SET);
+                                read(cfs_file, &mds, sizeof(MDS));
+                                if(mds.type == 2){
                                     add_dir_to_path(current, data.nodeid, data.offset, data.filename);
                                     current_offset = (*current)->offset;
                                 }
