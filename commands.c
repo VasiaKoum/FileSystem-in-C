@@ -18,14 +18,17 @@ int edit_commands(char *command,int cfs_file, list_node **current){
 		char *options = strtok(check_options, "\n");
         char *flags = strtok(options, "-");
         char name[FILENAME_SIZE], *flag_name;
-        memset(name, 0, FILENAME_SIZE);
+        int i=0;
+        strcpy(name, flags);
         int bs=BLOCK_SIZE, fns=FILENAME_SIZE, cfs=MAX_FILE_SIZE, mdfn=MAX_FILES_PER_DIR;
         while(flags!=NULL){
+            if(i == 1) memset(name, 0, FILENAME_SIZE);
             if(strncmp(flags, (char*)"bs", 2)==0) sscanf(flags,"%*s %d %s",&bs, name);
             else if(strncmp(flags, (char*)"cfs", 3)==0) sscanf(flags,"%*s %d %s",&cfs, name);
             else if(strncmp(flags, (char*)"fns", 3)==0) sscanf(flags,"%*s %d %s",&fns, name);
             else if(strncmp(flags, (char*)"mdfn", 4)==0) sscanf(flags,"%*s %d %s",&mdfn, name);
             flags = strtok(NULL, "-");
+            i++;
         }
         if (strlen(name)>0) cfs_create(name, bs, fns, cfs, mdfn);
         else printf("Name for cfs_file is missing.\n");
@@ -115,9 +118,10 @@ void add_to_bitmap(int offset, int cfs_file){
     bitmap_bit_place = cfs_place%8;
     unsigned char one = 1;
     one = one << bitmap_bit_place;
-    // printf("offset: %d cfs_place: %d bitmap_bit_place: %d bitmap_byte_place: %d\n",
-    // offset, cfs_place, bitmap_bit_place, bitmap_byte_place);
     bitmap->array[bitmap_byte_place] = bitmap->array[bitmap_byte_place]|one;
+
+    printf("offset: %d cfs_place: %d bitmap_bit_place: %d bitmap_byte_place: %d\n",
+    offset, cfs_place, bitmap_bit_place, bitmap_byte_place);
 
     lseek(cfs_file, sizeof(Superblock), SEEK_SET);
     write(cfs_file, bitmap, sizeof(Bitmap));
@@ -237,7 +241,7 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
             write(cfs_file, &data, sizeof(data_type));
         }
     }
-
+    printf("a file is sizeof %lu\n", sizeof(root_mds)+DATABLOCK_NUM*superblock.datablocks_size);
     add_to_bitmap(sizeof(Superblock)+sizeof(Bitmap), cfs_file);
 
     close(cfs_file);
@@ -263,7 +267,6 @@ int cfs_workwith(int cfs_file, char *filename, list_node **current){
         offset = mds->offset;
         filename = mds->filename;
         add_dir_to_path(current, nodeid, offset, filename);
-        // printf("Now working on file %s\n", filename);
         free(superblock); free(mds);
     }
     return cfs_file;
@@ -271,19 +274,17 @@ int cfs_workwith(int cfs_file, char *filename, list_node **current){
 
 void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
     if(cfs_file>0){
-        lseek(cfs_file, 0, SEEK_SET);
         Superblock *superblock = malloc(sizeof(Superblock));
-        read(cfs_file, superblock, sizeof(Superblock));
-
-        data_type data;
-        MDS mds;
-        MDS currentMDS;
         int free_offset;
         char *dirs = dirnames;
         strtok(dirs, " ");
         while(dirs!=NULL){
+            data_type data;
+            MDS mds, currentMDS;
 
             lseek(cfs_file, 0, SEEK_SET);
+            read(cfs_file, superblock, sizeof(Superblock));
+
             free_offset = get_space(cfs_file);
             printf("here free_offset %d\n", free_offset);
             superblock->latest_nodeid++;
@@ -295,7 +296,7 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
             strcpy(mds.filename, dirs);
             mds.creation_time = time(0); mds.access_time = time(0); mds.modification_time = time(0);
             mds.data.datablocks[0] = mds.offset + superblock->metadata_size;
-            //xaris
+
             for(int i = 1; i < DATABLOCK_NUM; i++){
                 mds.data.datablocks[i] = mds.data.datablocks[i-1] + superblock->datablocks_size;
             }
@@ -322,7 +323,7 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
             lseek(cfs_file, (*current)->offset, SEEK_SET);
             read(cfs_file, &currentMDS, superblock->metadata_size);
 
-            for(int i = 0; i < DATABLOCK_NUM; i++){
+            for(int i = 0; i < DATABLOCK_NUM; i++) {
                 lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
                 for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++) {
                     read(cfs_file, &data, sizeof(data_type));
@@ -339,8 +340,6 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
                 }
             }
             add_to_bitmap(mds.offset, cfs_file);
-            //mexri edw
-
             dirs = strtok(NULL, " ");
         }
         // delete_from_bitmap(int offset,int cfs_file);
@@ -353,16 +352,17 @@ void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, lis
     char *files = filenames;
     int fd_current;
     if(cfs_file>0){
-        lseek(cfs_file, 0, SEEK_SET);
+
         Superblock *superblock = malloc(sizeof(Superblock));
-        read(cfs_file, superblock, sizeof(Superblock));
 
         printf("In cfs_touch\n");
-        data_type data;
-        MDS mds, currentMDS;
         int free_offset;
         strtok(files, " ");
         while(files != NULL){
+            data_type data;
+            MDS mds, currentMDS;
+            lseek(cfs_file, 0, SEEK_SET);
+            read(cfs_file, superblock, sizeof(Superblock));
             bool exists_already = false;
             bool empty_space = false;
             lseek(cfs_file, (*current)->offset, SEEK_SET);
