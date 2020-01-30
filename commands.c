@@ -766,3 +766,7 @@ void cfs_rm(int cfs_file,  list_node **current, char *path){
     }
     else printf("Execute first cfs_workwith.\n");
 }
+
+void cfs_ln(int cfs_file,  list_node **current, char *source, char *output){
+    
+}
