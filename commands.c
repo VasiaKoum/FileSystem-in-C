@@ -47,11 +47,11 @@ int edit_commands(char *command,int cfs_file, list_node **current){
     else if(strncmp(command, (char*)"cfs_touch ", 10)==0 && strlen(command)>11) {
         char *options = strtok(command, " \n");
         char *filename=NULL;
-        bool time_acc=false, time_edit=false;
+        bool time_acc=true, time_edit=false;
         while(options!=NULL){
             if(strcmp(options, (char*)"-a")==0) time_acc=true;
             else if(strcmp(options, (char*)"-m")==0) time_edit=true;
-            else filename = options;
+            else { filename = options; }
             options = strtok(NULL, " \n");
         }
         cfs_touch(cfs_file, time_acc, time_edit, filename, current);
@@ -187,7 +187,7 @@ int find_path(int cfs_file, list_node **current, char *path, bool change_pathlis
                                         if(change_pathlist) add_dir_to_path(current, data.nodeid, data.offset, data.filename);
                                         current_offset = data.offset;
                                     }
-                                    else printf("%s its not a dir.\n", full_path);
+                                    else if(change_pathlist) printf("%s: Not a directory\n", full_path);
                                     exists_already = true;
                                     i = DATABLOCK_NUM;
                                     break;
@@ -514,7 +514,6 @@ void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, lis
                                 write(cfs_file, &fileMDS, superblock->metadata_size);
                                 lseek(cfs_file, current_pointer, SEEK_SET);
                             }
-                            // else printf("File with name %s already exists.\n",files);
                             exists_already = true;
                             i = DATABLOCK_NUM;
                             break;
@@ -617,7 +616,9 @@ void cfs_ls(int cfs_file, bool a, bool r, bool l, bool u, bool d, bool h, char *
                             strftime(create, 20, "%F %H:%M:%S", localtime(&fileMDS.creation_time));
                             strftime(modify, 20, "%F %H:%M:%S", localtime(&fileMDS.modification_time));
                             strftime(access, 20, "%F %H:%M:%S", localtime(&fileMDS.access_time));
-                            printf("%s \ttc  %s \tta  %s \ttm  %s\n", data.filename, create, access, modify);
+                            if(fileMDS.type == 2) printf("%s \t DIR \t tc  %s \tta  %s \ttm  %s\n", data.filename, create, access, modify);
+                            else if(fileMDS.type == 1) printf("%s \t FILE \t tc  %s \tta  %s \ttm  %s\n", data.filename, create, access, modify);
+                            else printf("%s \t LK \t tc  %s \tta  %s \ttm  %s\n", data.filename, create, access, modify);
                             lseek(cfs_file, current_pointer, SEEK_SET);
                         }
                         else{
