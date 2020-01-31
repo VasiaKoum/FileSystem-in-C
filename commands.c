@@ -413,7 +413,6 @@ void cfs_create(char* cfs_name, int datablock_size, int filenames_size, int max_
             write(cfs_file, &data, sizeof(data_type));
         }
     }
-    // printf("a file is sizeof %lu\n", sizeof(root_mds)+DATABLOCK_NUM*superblock.datablocks_size);
     add_to_bitmap(sizeof(Superblock)+sizeof(Bitmap), cfs_file);
 
     close(cfs_file);
@@ -843,8 +842,6 @@ void cfs_ln(int cfs_file,  list_node **current, char *source, char *output){
         if ((output_offset = find_path(cfs_file, current, output_path, false))<0)
             printf("cfs_ln: failed to access %s: No such file or directory\n", output_path);
 
-        printf("offsets: %d %d %d, source:%s, output:%s\n", source_offset, output_offset, (*current)->offset, source, output);
-
         if(source>=0 && output>=0){
             data_type data;
             MDS mds, currentMDS, sourceMDS;
@@ -852,8 +849,6 @@ void cfs_ln(int cfs_file,  list_node **current, char *source, char *output){
             read(cfs_file, superblock, sizeof(Superblock));
             bool exists_already = false;
             bool empty_space = false;
-            // lseek(cfs_file, source_offset, SEEK_SET);
-            // read(cfs_file, &currentMDS, superblock->metadata_size);
 
             if(find_file(cfs_file, filename)>=0) printf("cfs_ln: '%s' name already exists\n", filename);
             else{
@@ -878,7 +873,6 @@ void cfs_ln(int cfs_file,  list_node **current, char *source, char *output){
                         mds.data.datablocks[i] = mds.data.datablocks[i-1] + superblock->datablocks_size;
                     }
                     lseek(cfs_file, mds.offset, SEEK_SET);
-                    printf("write here %d\n", mds.offset);
                     write(cfs_file, &mds, superblock->metadata_size);
                     add_to_bitmap(mds.offset, cfs_file);
 
@@ -915,7 +909,6 @@ void cfs_ln(int cfs_file,  list_node **current, char *source, char *output){
                                 data.nodeid = mds.nodeid;
                                 data.offset = mds.offset;
                                 strcpy(data.filename, mds.filename);
-                                printf("here %s\n", mds.filename);
                                 data.active = true;
                                 lseek(cfs_file, -sizeof(data_type), SEEK_CUR);
                                 write(cfs_file, &data, sizeof(data_type));
