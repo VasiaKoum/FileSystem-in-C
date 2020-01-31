@@ -84,7 +84,8 @@ int edit_commands(char *command,int cfs_file, list_node **current){
         char *check_path = &(command[7]);
         char *path = strtok(check_path, "\n");
         bool i=false;
-        cfs_mv(cfs_file, current, "./here ./here1", "./dir1", i);
+        // cfs_mv(cfs_file, current, "./here ./here1", "./dir1", i);
+        cfs_mv(cfs_file, current, "new.txt", "./dir1", i);
     }
     else if(strncmp(command, (char*)"cfs_rm ", 7)==0 && strlen(command)>8) {
         char *check_path = &(command[7]);
@@ -189,12 +190,16 @@ void print_current_path(list_node **current){
 int find_path(int cfs_file, list_node **current, char *path, bool change_pathlist){
     int current_offset=(*current)->offset;
     bool relative_path=true;
+
     if(cfs_file>0){
         Superblock *superblock = malloc(sizeof(Superblock));
         MDS mds, currentMDS;
-        char *full_path = path;
+        char str_path[FILENAME_SIZE];
+        strcpy(str_path, path);
+        char *full_path = str_path;
         if(strncmp(full_path, "/", 1)==0) relative_path=false;
-        strtok(full_path, "/");
+        full_path = strtok(str_path, "/");
+
         while(full_path!=NULL){
             // If path is relative
             if (relative_path){
@@ -684,6 +689,9 @@ void cfs_mv(int cfs_file,  list_node **current, char *all_sources, char *destina
     bool exists = false;
     if(cfs_file>0){
         char *source = strtok(all_sources, " ");
+        if (source == NULL) source = all_sources;
+        printf("source %s, destination %s\n", source, destination);
+
         int file_offset, dest_offset;
         if ((dest_offset = find_path(cfs_file, current, destination, false))<0)
             printf("cfs_mv: failed to access %s: No such file or directory\n", destination);
