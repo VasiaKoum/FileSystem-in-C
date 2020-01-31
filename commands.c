@@ -698,7 +698,7 @@ void cfs_mv(int cfs_file,  list_node **current, char *all_sources, char *destina
         else{
             while(source!=NULL){
                 data_type data,tempdata;
-                MDS currentMDS, destMDS;
+                MDS currentMDS, destMDS, fileMDS;
 
                 if ((file_offset = find_path(cfs_file, current, source, false))<0){
                     printf("cfs_mv: failed to access %s: No such file or directory\n", source);
@@ -709,7 +709,10 @@ void cfs_mv(int cfs_file,  list_node **current, char *all_sources, char *destina
                     Superblock *superblock = malloc(sizeof(Superblock));
                     read(cfs_file, superblock, sizeof(Superblock));
 
-                    lseek(cfs_file, (*current)->offset, SEEK_SET);
+                    lseek(cfs_file, file_offset, SEEK_SET);
+                    read(cfs_file, &fileMDS, superblock->metadata_size);
+
+                    lseek(cfs_file, fileMDS.parent_offset, SEEK_SET);
                     read(cfs_file, &currentMDS, superblock->metadata_size);
                     //check if name exists!
                     for(int i = 0; i < DATABLOCK_NUM; i++){
@@ -748,11 +751,15 @@ void cfs_mv(int cfs_file,  list_node **current, char *all_sources, char *destina
                                 if(data.active == false){
                                      lseek(cfs_file, -sizeof(data_type), SEEK_CUR);
                                      write(cfs_file, &tempdata, sizeof(data_type));
+                                     fileMDS.parent_offset = dest_offset;
+                                     lseek(cfs_file, file_offset, SEEK_SET);
+                                     write(cfs_file, &fileMDS, superblock->metadata_size);
                                      i = DATABLOCK_NUM;
                                      break;
                                 }
                             }
                         }
+
                     }
                     source = strtok(NULL, " ");
                     free(superblock);
