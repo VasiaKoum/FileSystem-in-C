@@ -93,9 +93,13 @@ int edit_commands(char *command,int cfs_file, list_node **current){
     }
     else if(strncmp(command, (char*)"cfs_ln ", 7)==0 && strlen(command)>8) {
         char *check_path = &(command[7]);
-        char *path = strtok(check_path, "\n");
-
-        cfs_ln(cfs_file, current, source, output);
+        char *source = strtok(check_path, " \n"), *output;
+        if (source != NULL) {
+            output = strtok(NULL, " \n");
+            if (output != NULL) cfs_ln(cfs_file, current, source, output);
+            else printf("cfs_ln: failed to create hard link '%s'\n", source);
+        }
+        else printf("cfs_ln: missing file operand\n");
     }
     else if(strncmp(command, (char*)"cfs_cat ", 8)==0 && strlen(command)>9) {
         char *check_path = &(command[7]);
@@ -113,7 +117,7 @@ int edit_commands(char *command,int cfs_file, list_node **current){
         char *check_path = &(command[7]);
         char *path = strtok(check_path, "\n");
     }
-    else printf("Wrong command, type again.\n");
+    else { strtok(command, "\n"); printf("%s: command not found\n", command); }
     return cfs_file;
 }
 
@@ -186,7 +190,6 @@ int find_path(int cfs_file, list_node **current, char *path, bool change_pathlis
     if(cfs_file>0){
         Superblock *superblock = malloc(sizeof(Superblock));
         char *full_path = path;
-        // strtok(full_path, "/");
         if(strncmp(full_path, "/", 1)==0) relative_path=false;
         while(full_path!=NULL){
             // If path is relative
@@ -511,7 +514,7 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
         // delete_from_bitmap(int offset,int cfs_file);
         free(superblock);
     }
-    else printf("Execute first cfs_workwith.\n");
+    else printf("cfs_mkdir: execute first cfs_workwith\n");
 }
 
 void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, list_node **current){
@@ -602,7 +605,7 @@ void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, lis
         }
         free(superblock);
     }
-    else printf("Execute first cfs_workwith.\n");
+    else printf("cfs_touch: execute first cfs_workwith\n");
 }
 
 void cfs_pwd(int cfs_file, list_node **current){
@@ -610,12 +613,12 @@ void cfs_pwd(int cfs_file, list_node **current){
         print_current_path(current);
         printf("\n");
     }
-    else printf("Execute first cfs_workwith.\n");
+    else printf("cfs_pwd: execute first cfs_workwith\n");
 }
 
 void cfs_cd(int cfs_file, list_node **current, char *path){
     if(cfs_file>0) find_path(cfs_file, current, path, true);
-    else printf("Execute first cfs_workwith.\n");
+    else printf("cfs_cd: execute first cfs_workwith\n");
 }
 
 void cfs_ls(int cfs_file, bool a, bool r, bool l, bool u, bool d, bool h, char *filename, list_node **current, char *path){
@@ -651,10 +654,9 @@ void cfs_ls(int cfs_file, bool a, bool r, bool l, bool u, bool d, bool h, char *
                             strftime(create, 20, "%F %H:%M:%S", localtime(&fileMDS.creation_time));
                             strftime(modify, 20, "%F %H:%M:%S", localtime(&fileMDS.modification_time));
                             strftime(access, 20, "%F %H:%M:%S", localtime(&fileMDS.access_time));
-                            if(fileMDS.type == 2) printf("%s \t DIR \t tc  %s \tta  %s \ttm  %s\n", data.filename, create, access, modify);
-                            else if(fileMDS.type == 1) printf("%s \t FILE \t tc  %s \tta  %s \ttm  %s\n", data.filename, create, access, modify);
-                            else printf("%s \t LK \t tc  %s \tta  %s \ttm  %s\n", data.filename, create, access, modify);
-                            printf("offset: %d\n", fileMDS.offset);
+                            if(fileMDS.type == 2) printf("%s \t DIR \t  (TC)%s  (TA)%s  (TM)%s\n", data.filename, create, access, modify);
+                            else if(fileMDS.type == 1) printf("%s \t FILE \t  (TC)%s  (TA)%s  (TM)%s\n", data.filename, create, access, modify);
+                            else printf("%s \t LK \t  (TC)%s  (TA)%s  (TM)%s\n", data.filename, create, access, modify);
                             lseek(cfs_file, current_pointer, SEEK_SET);
                         }
                         else{
@@ -668,7 +670,7 @@ void cfs_ls(int cfs_file, bool a, bool r, bool l, bool u, bool d, bool h, char *
         }
         free(superblock);
     }
-    else printf("Execute first cfs_workwith.\n");
+    else printf("cfs_ls: execute first cfs_workwith\n");
 }
 
 void cfs_mv(int cfs_file,  list_node **current, char *all_sources, char *destination, bool i){
@@ -737,7 +739,7 @@ void cfs_mv(int cfs_file,  list_node **current, char *all_sources, char *destina
             free(superblock);
         }
     }
-    else printf("Execute first cfs_workwith.\n");
+    else printf("cfs_mv: execute first cfs_workwith\n");
 }
 
 void cfs_rm(int cfs_file,  list_node **current, char *path, bool r){
@@ -745,6 +747,7 @@ void cfs_rm(int cfs_file,  list_node **current, char *path, bool r){
     if(cfs_file>0){
 
         char *full_path = path;
+        int dest_offset;
         if (path == NULL) full_path = (*current)->filename;
         else strtok(full_path, "/");
         while(full_path!=NULL){
@@ -803,9 +806,50 @@ void cfs_rm(int cfs_file,  list_node **current, char *path, bool r){
         }
 
     }
-    else printf("Execute first cfs_workwith.\n");
+    else printf("cfs_rm: execute first cfs_workwith\n");
 }
 
 void cfs_ln(int cfs_file,  list_node **current, char *source, char *output){
+    if(cfs_file>0){
+        Superblock *superblock = malloc(sizeof(Superblock));
+        int free_offset, source_offset = find_path(cfs_file, current, source, false),
+        output_offset = find_path(cfs_file, current, output, false);
 
+        data_type data;
+        MDS mds, currentMDS, fileMDS;
+        lseek(cfs_file, 0, SEEK_SET);
+        read(cfs_file, superblock, sizeof(Superblock));
+        bool exists_already = false;
+        bool empty_space = false;
+        lseek(cfs_file, (*current)->offset, SEEK_SET);
+        read(cfs_file, &currentMDS, superblock->metadata_size);
+        //check if name exists!
+        for(int i = 0; i < DATABLOCK_NUM; i++){
+            lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
+            for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++){
+                read(cfs_file, &data, sizeof(data_type));
+                int current_pointer = lseek(cfs_file, 0, SEEK_CUR);
+                if(data.active == true){
+                    if(strcmp(data.filename, files) == 0){
+                        if(time_acc || time_edit){
+                            lseek(cfs_file, data.offset, SEEK_SET);
+                            read(cfs_file, &fileMDS, superblock->metadata_size);
+                            if(time_acc) fileMDS.access_time = time(0);
+                            if(time_edit) fileMDS.modification_time = time(0);
+                            lseek(cfs_file, data.offset, SEEK_SET);
+                            write(cfs_file, &fileMDS, superblock->metadata_size);
+                            lseek(cfs_file, current_pointer, SEEK_SET);
+                        }
+                        exists_already = true;
+                        i = DATABLOCK_NUM;
+                        break;
+                    }
+                }else{
+                    empty_space = true;
+                }
+            }
+        }
+        free(superblock);
+    }
+    else printf("cfs_ln: execute first cfs_workwith\n");
 }
