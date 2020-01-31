@@ -829,15 +829,19 @@ void cfs_ln(int cfs_file,  list_node **current, char *source, char *output){
         char *tmp = strrchr(output, '/'), *filename;
         char *output_path = malloc(strlen(output)+1);
         memset(output_path, 0, strlen(output)+1);
-        strncpy(output_path, output, (int)(tmp-output));
-        filename=tmp+1;
+        if(tmp == NULL){
+            strcpy(output_path, "./");
+            filename = output;
+        }
+        else{
+            strncpy(output_path, output, (int)(tmp-output));
+            filename=tmp+1;
+        }
 
         if ((source_offset = find_path(cfs_file, current, source, false))<0)
             printf("cfs_ln: failed to access %s: No such file or directory\n", source);
         if ((output_offset = find_path(cfs_file, current, output_path, false))<0)
             printf("cfs_ln: failed to access %s: No such file or directory\n", output_path);
-
-        printf("offsets: %d %d\n", source_offset, output_offset);
 
         if(source>=0 && output>=0){
             data_type data;
@@ -849,9 +853,9 @@ void cfs_ln(int cfs_file,  list_node **current, char *source, char *output){
             lseek(cfs_file, source_offset, SEEK_SET);
             read(cfs_file, &currentMDS, superblock->metadata_size);
 
-            if(find_file(cfs_file, filename)<0) printf("cfs_ln: %s name already exists\n", filename);
+            if(find_file(cfs_file, filename)>=0) printf("cfs_ln: '%s' name already exists\n", filename);
             else{
-                //check if name exists!
+
                 // for(int i = 0; i < DATABLOCK_NUM; i++){
                 //     lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
                 //     for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++){
@@ -877,6 +881,7 @@ void cfs_ln(int cfs_file,  list_node **current, char *source, char *output){
                 //         }
                 //     }
                 // }
+                
             }
         }
         free(superblock); free(output_path);
