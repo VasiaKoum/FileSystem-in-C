@@ -226,9 +226,9 @@ int find_path(int cfs_file, list_node **current, char *path, bool change_pathlis
                                     read(cfs_file, &mds, sizeof(MDS));
                                     if(mds.type == 2){
                                         if(change_pathlist) add_dir_to_path(current, data.nodeid, data.offset, data.filename);
-                                        current_offset = data.offset;
                                     }
                                     else if(change_pathlist) printf("%s: Not a directory\n", full_path);
+                                    current_offset = data.offset;
                                     exists_already = true;
                                     i = DATABLOCK_NUM;
                                     break;
@@ -475,7 +475,7 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
             }
 
             lseek(cfs_file, mds.offset, SEEK_SET);
-            write(cfs_file, &mds, sizeof(superblock->metadata_size));
+            write(cfs_file, &mds, superblock->metadata_size);
 
             lseek(cfs_file, 0, SEEK_SET);
             write(cfs_file, superblock, sizeof(Superblock));
@@ -558,7 +558,8 @@ void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, lis
                             i = DATABLOCK_NUM;
                             break;
                         }
-                    }else{
+                    }
+                    else{
                         empty_space = true;
                     }
                 }
@@ -580,7 +581,7 @@ void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, lis
                     mds.data.datablocks[i] = mds.data.datablocks[i-1] + superblock->datablocks_size;
                 }
                 lseek(cfs_file, mds.offset, SEEK_SET);
-                write(cfs_file, &mds, sizeof(mds));
+                write(cfs_file, &mds, superblock->metadata_size);
 
                 lseek(cfs_file, 0, SEEK_SET);
                 write(cfs_file, superblock, sizeof(Superblock));
@@ -660,14 +661,13 @@ void cfs_ls(int cfs_file, bool a, bool r, bool l, bool u, bool d, bool h, char *
                             strftime(create, 20, "%F %H:%M:%S", localtime(&fileMDS.creation_time));
                             strftime(modify, 20, "%F %H:%M:%S", localtime(&fileMDS.modification_time));
                             strftime(access, 20, "%F %H:%M:%S", localtime(&fileMDS.access_time));
-                            if(fileMDS.type == 2) printf("%s \t DIR \t  (TC)%s  (TA)%s  (TM)%s\n", data.filename, create, access, modify);
-                            else if(fileMDS.type == 1) printf("%s \t FILE \t  (TC)%s  (TA)%s  (TM)%s\n", data.filename, create, access, modify);
-                            else printf("%s \t LK \t  (TC)%s  (TA)%s  (TM)%s\n", data.filename, create, access, modify);
+                            if(fileMDS.type == 2) printf("%s \t DIR \t %d \t  (TC)%s  (TA)%s  (TM)%s\n", data.filename, data.offset, create, access, modify);
+                            else if(fileMDS.type == 1) printf("%s \t FILE \t %d \t  (TC)%s  (TA)%s  (TM)%s\n", data.filename, data.offset, create, access, modify);
+                            else printf("%s \t LK \t %d \t  (TC)%s  (TA)%s  (TM)%s\n", data.filename, data.offset, create, access, modify);
                             lseek(cfs_file, current_pointer, SEEK_SET);
                         }
                         else{
-                            if(strncmp(data.filename, ".", 1)!=0)
-                             printf("%s\n",data.filename);
+                            if(strncmp(data.filename, ".", 1)!=0) printf("%s\n",data.filename);
                         }
                     }
                 }
@@ -843,7 +843,7 @@ void cfs_ln(int cfs_file,  list_node **current, char *source, char *output){
         if ((output_offset = find_path(cfs_file, current, output_path, false))<0)
             printf("cfs_ln: failed to access %s: No such file or directory\n", output_path);
 
-        printf("offsets: %d %d\n", source_offset, output_offset);
+        printf("offsets: %d %d %d, source:%s, output:%s\n", source_offset, output_offset, (*current)->offset, source, output);
 
         if(source>=0 && output>=0){
             data_type data;
@@ -852,79 +852,80 @@ void cfs_ln(int cfs_file,  list_node **current, char *source, char *output){
             read(cfs_file, superblock, sizeof(Superblock));
             bool exists_already = false;
             bool empty_space = false;
-            lseek(cfs_file, source_offset, SEEK_SET);
-            read(cfs_file, &currentMDS, superblock->metadata_size);
+            // lseek(cfs_file, source_offset, SEEK_SET);
+            // read(cfs_file, &currentMDS, superblock->metadata_size);
 
             if(find_file(cfs_file, filename)>=0) printf("cfs_ln: '%s' name already exists\n", filename);
             else{
-                int free_offset = get_space(cfs_file);
-
-                superblock->latest_nodeid++;
-                mds.nodeid = superblock->latest_nodeid;
-                mds.offset = free_offset;
-                mds.size = 0;
-                mds.type = 3;
-                // CHECKING EDWWWWWWWWWWWWWWWWW
-                mds.parent_nodeid = (*current)->nodeid;
-                mds.parent_offset = (*current)->offset;
-                // MEXRI EDWWWWWWWWWWWWWWWWW
-                strcpy(mds.filename, filename);
-                mds.creation_time = time(0); mds.access_time = time(0); mds.modification_time = time(0);
-                mds.data.datablocks[0] = mds.offset + superblock->metadata_size;
-
-                for(int i = 1; i < DATABLOCK_NUM; i++){
-                    mds.data.datablocks[i] = mds.data.datablocks[i-1] + superblock->datablocks_size;
-                }
-
-                lseek(cfs_file, mds.offset, SEEK_SET);
-                write(cfs_file, &mds, sizeof(superblock->metadata_size));
-
-                lseek(cfs_file, 0, SEEK_SET);
-                write(cfs_file, superblock, sizeof(Superblock));
-
-                data.nodeid = 0;
-                data.offset = 0;
-                memset(data.filename, 0, FILENAME_SIZE);
-                data.active = false;
-
-                for(int i = 0; i < DATABLOCK_NUM; i++){
-                    lseek(cfs_file, mds.data.datablocks[i], SEEK_SET);
-                    for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++) {
-                        write(cfs_file, &data, sizeof(data_type));
-                    }
-                }
-
                 lseek(cfs_file, source_offset, SEEK_SET);
-                read(cfs_file, &sourceMDS, sizeof(superblock->metadata_size));
-                data.nodeid = sourceMDS.nodeid;
-                data.offset = sourceMDS.offset;
-                strcpy(data.filename, sourceMDS.filename);
-                data.active = true;
+                read(cfs_file, &sourceMDS, superblock->metadata_size);
+                if (sourceMDS.type != 1) printf("cfs_ln: '%s' hard link not allowed for directory\n", filename);
+                else{
+                    int free_offset = get_space(cfs_file);
 
-                lseek(cfs_file, mds.data.datablocks[0], SEEK_SET);
-                write(cfs_file, &data, sizeof(data_type));
+                    // Create link
+                    superblock->latest_nodeid++;
+                    mds.nodeid = superblock->latest_nodeid;
+                    mds.offset = free_offset;
+                    mds.size = 0;
+                    mds.type = 3;
+                    mds.parent_nodeid = (*current)->nodeid;
+                    mds.parent_offset = (*current)->offset;
+                    strcpy(mds.filename, filename);
+                    mds.creation_time = time(0); mds.access_time = time(0); mds.modification_time = time(0);
+                    mds.data.datablocks[0] = mds.offset + superblock->metadata_size;
+                    for(int i = 1; i < DATABLOCK_NUM; i++){
+                        mds.data.datablocks[i] = mds.data.datablocks[i-1] + superblock->datablocks_size;
+                    }
+                    lseek(cfs_file, mds.offset, SEEK_SET);
+                    printf("write here %d\n", mds.offset);
+                    write(cfs_file, &mds, superblock->metadata_size);
+                    add_to_bitmap(mds.offset, cfs_file);
 
-                /* update parent blocks */
-                lseek(cfs_file, (*current)->offset, SEEK_SET);
-                read(cfs_file, &currentMDS, superblock->metadata_size);
-
-                for(int i = 0; i < DATABLOCK_NUM; i++) {
-                    lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
-                    for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++) {
-                        read(cfs_file, &data, sizeof(data_type));
-                        if(data.active == false){
-                            data.nodeid = mds.nodeid;
-                            data.offset = mds.offset;
-                            strcpy(data.filename, mds.filename);
-                            data.active = true;
-                            lseek(cfs_file, -sizeof(data_type), SEEK_CUR);
+                    // Fill empty blocks
+                    data.nodeid = 0;
+                    data.offset = 0;
+                    memset(data.filename, 0, FILENAME_SIZE);
+                    data.active = false;
+                    for(int i = 0; i < DATABLOCK_NUM; i++){
+                        lseek(cfs_file, mds.data.datablocks[i], SEEK_SET);
+                        for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++) {
                             write(cfs_file, &data, sizeof(data_type));
-                            i = DATABLOCK_NUM;
-                            break;
                         }
                     }
+
+                    // Fill a data-rec with the info of file-linking
+                    lseek(cfs_file, source_offset, SEEK_SET);
+                    read(cfs_file, &sourceMDS, superblock->metadata_size);
+                    data.nodeid = sourceMDS.nodeid;
+                    data.offset = sourceMDS.offset;
+                    strcpy(data.filename, sourceMDS.filename);
+                    data.active = true;
+                    lseek(cfs_file, mds.data.datablocks[0], SEEK_SET);
+                    write(cfs_file, &data, sizeof(data_type));
+
+                    // Update parent info
+                    lseek(cfs_file, (*current)->offset, SEEK_SET);
+                    read(cfs_file, &currentMDS, superblock->metadata_size);
+                    for(int i = 0; i < DATABLOCK_NUM; i++) {
+                        lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
+                        for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++) {
+                            read(cfs_file, &data, sizeof(data_type));
+                            if(data.active == false){
+                                data.nodeid = mds.nodeid;
+                                data.offset = mds.offset;
+                                strcpy(data.filename, mds.filename);
+                                printf("here %s\n", mds.filename);
+                                data.active = true;
+                                lseek(cfs_file, -sizeof(data_type), SEEK_CUR);
+                                write(cfs_file, &data, sizeof(data_type));
+                                i = DATABLOCK_NUM;
+                                break;
+                            }
+                        }
+                    }
+
                 }
-                add_to_bitmap(mds.offset, cfs_file);
             }
         }
         free(superblock); free(output_path);
