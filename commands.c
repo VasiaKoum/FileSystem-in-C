@@ -475,7 +475,7 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
             }
 
             lseek(cfs_file, mds.offset, SEEK_SET);
-            write(cfs_file, &mds, sizeof(mds));
+            write(cfs_file, &mds, sizeof(superblock->metadata_size));
 
             lseek(cfs_file, 0, SEEK_SET);
             write(cfs_file, superblock, sizeof(Superblock));
@@ -843,9 +843,11 @@ void cfs_ln(int cfs_file,  list_node **current, char *source, char *output){
         if ((output_offset = find_path(cfs_file, current, output_path, false))<0)
             printf("cfs_ln: failed to access %s: No such file or directory\n", output_path);
 
+        printf("offsets: %d %d\n", source_offset, output_offset);
+
         if(source>=0 && output>=0){
             data_type data;
-            MDS mds, currentMDS, fileMDS;
+            MDS mds, currentMDS, sourceMDS;
             lseek(cfs_file, 0, SEEK_SET);
             read(cfs_file, superblock, sizeof(Superblock));
             bool exists_already = false;
@@ -855,33 +857,74 @@ void cfs_ln(int cfs_file,  list_node **current, char *source, char *output){
 
             if(find_file(cfs_file, filename)>=0) printf("cfs_ln: '%s' name already exists\n", filename);
             else{
+                int free_offset = get_space(cfs_file);
 
-                // for(int i = 0; i < DATABLOCK_NUM; i++){
-                //     lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
-                //     for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++){
-                //         read(cfs_file, &data, sizeof(data_type));
-                //         int current_pointer = lseek(cfs_file, 0, SEEK_CUR);
-                //         if(data.active == true){
-                //             if(strcmp(data.filename, files) == 0){
-                //                 if(time_acc || time_edit){
-                //                     lseek(cfs_file, data.offset, SEEK_SET);
-                //                     read(cfs_file, &fileMDS, superblock->metadata_size);
-                //                     if(time_acc) fileMDS.access_time = time(0);
-                //                     if(time_edit) fileMDS.modification_time = time(0);
-                //                     lseek(cfs_file, data.offset, SEEK_SET);
-                //                     write(cfs_file, &fileMDS, superblock->metadata_size);
-                //                     lseek(cfs_file, current_pointer, SEEK_SET);
-                //                 }
-                //                 exists_already = true;
-                //                 i = DATABLOCK_NUM;
-                //                 break;
-                //             }
-                //         }else{
-                //             empty_space = true;
-                //         }
-                //     }
-                // }
-                
+                superblock->latest_nodeid++;
+                mds.nodeid = superblock->latest_nodeid;
+                mds.offset = free_offset;
+                mds.size = 0;
+                mds.type = 3;
+                // CHECKING EDWWWWWWWWWWWWWWWWW
+                mds.parent_nodeid = (*current)->nodeid;
+                mds.parent_offset = (*current)->offset;
+                // MEXRI EDWWWWWWWWWWWWWWWWW
+                strcpy(mds.filename, filename);
+                mds.creation_time = time(0); mds.access_time = time(0); mds.modification_time = time(0);
+                mds.data.datablocks[0] = mds.offset + superblock->metadata_size;
+
+                for(int i = 1; i < DATABLOCK_NUM; i++){
+                    mds.data.datablocks[i] = mds.data.datablocks[i-1] + superblock->datablocks_size;
+                }
+
+                lseek(cfs_file, mds.offset, SEEK_SET);
+                write(cfs_file, &mds, sizeof(superblock->metadata_size));
+
+                lseek(cfs_file, 0, SEEK_SET);
+                write(cfs_file, superblock, sizeof(Superblock));
+
+                data.nodeid = 0;
+                data.offset = 0;
+                memset(data.filename, 0, FILENAME_SIZE);
+                data.active = false;
+
+                for(int i = 0; i < DATABLOCK_NUM; i++){
+                    lseek(cfs_file, mds.data.datablocks[i], SEEK_SET);
+                    for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++) {
+                        write(cfs_file, &data, sizeof(data_type));
+                    }
+                }
+
+                lseek(cfs_file, source_offset, SEEK_SET);
+                read(cfs_file, &sourceMDS, sizeof(superblock->metadata_size));
+                data.nodeid = sourceMDS.nodeid;
+                data.offset = sourceMDS.offset;
+                strcpy(data.filename, sourceMDS.filename);
+                data.active = true;
+
+                lseek(cfs_file, mds.data.datablocks[0], SEEK_SET);
+                write(cfs_file, &data, sizeof(data_type));
+
+                /* update parent blocks */
+                lseek(cfs_file, (*current)->offset, SEEK_SET);
+                read(cfs_file, &currentMDS, superblock->metadata_size);
+
+                for(int i = 0; i < DATABLOCK_NUM; i++) {
+                    lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
+                    for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++) {
+                        read(cfs_file, &data, sizeof(data_type));
+                        if(data.active == false){
+                            data.nodeid = mds.nodeid;
+                            data.offset = mds.offset;
+                            strcpy(data.filename, mds.filename);
+                            data.active = true;
+                            lseek(cfs_file, -sizeof(data_type), SEEK_CUR);
+                            write(cfs_file, &data, sizeof(data_type));
+                            i = DATABLOCK_NUM;
+                            break;
+                        }
+                    }
+                }
+                add_to_bitmap(mds.offset, cfs_file);
             }
         }
         free(superblock); free(output_path);
