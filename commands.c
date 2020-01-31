@@ -112,10 +112,12 @@ int edit_commands(char *command,int cfs_file, list_node **current){
     else if(strncmp(command, (char*)"cfs_import ", 11)==0 && strlen(command)>12) {
         char *check_path = &(command[7]);
         char *path = strtok(check_path, "\n");
+        // cfs_import(cfs_file, current, sources, directory);
     }
     else if(strncmp(command, (char*)"cfs_export ", 11)==0 && strlen(command)>12) {
         char *check_path = &(command[7]);
         char *path = strtok(check_path, "\n");
+        // cfs_export(cfs_file, current, sources, directory);
     }
     else { strtok(command, "\n"); printf("%s: command not found\n", command); }
     return cfs_file;
@@ -924,4 +926,12 @@ void cfs_ln(int cfs_file,  list_node **current, char *source, char *output){
         free(superblock); free(output_path);
     }
     else printf("cfs_ln: execute first cfs_workwith\n");
+}
+
+void cfs_import(int cfs_file,  list_node **current, char *sources, char *directory){
+
+}
+
+void cfs_export(int cfs_file,  list_node **current, char *sources, char *directory){
+
 }
