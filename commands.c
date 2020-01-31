@@ -185,7 +185,7 @@ void print_current_path(list_node **current){
 }
 
 int find_path(int cfs_file, list_node **current, char *path, bool change_pathlist){
-    int current_offset=0;
+    int current_offset=-1;
     bool relative_path=true;
     if(cfs_file>0){
         Superblock *superblock = malloc(sizeof(Superblock));
@@ -231,7 +231,7 @@ int find_path(int cfs_file, list_node **current, char *path, bool change_pathlis
                             }
                         }
                     }
-                    if(!exists_already) { printf("Dir %s not exist.\n", full_path); free(superblock); return 0; }
+                    // if(!exists_already) { printf("Dir %s not exist.\n", full_path); free(superblock); return 0; }
                 }
             }
             // If path is absolute
@@ -511,7 +511,6 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
             add_to_bitmap(mds.offset, cfs_file);
             dirs = strtok(NULL, " ");
         }
-        // delete_from_bitmap(int offset,int cfs_file);
         free(superblock);
     }
     else printf("cfs_mkdir: execute first cfs_workwith\n");
@@ -617,7 +616,10 @@ void cfs_pwd(int cfs_file, list_node **current){
 }
 
 void cfs_cd(int cfs_file, list_node **current, char *path){
-    if(cfs_file>0) find_path(cfs_file, current, path, true);
+    if(cfs_file>0) {
+        if(find_path(cfs_file, current, path, true)<0)
+            printf("cfs_cd: failed to access %s: no such file or directory\n", path);
+    }
     else printf("cfs_cd: execute first cfs_workwith\n");
 }
 
@@ -678,65 +680,71 @@ void cfs_mv(int cfs_file,  list_node **current, char *all_sources, char *destina
     if(cfs_file>0){
         char *source = strtok(all_sources, " ");
         int file_offset, dest_offset;
+        if ((dest_offset = find_path(cfs_file, current, destination, false))<0)
+            printf("cfs_mv: failed to access %s: No such file or directory\n", destination);
+        else{
+            while(source!=NULL){
+                data_type data,tempdata;
+                MDS currentMDS, destMDS;
 
-        while(source!=NULL){
-            data_type data,tempdata;
-            MDS currentMDS, destMDS;
-
-            //file_offset = find_path(cfs_file, current, source, false);
-            dest_offset = find_path(cfs_file, current, destination, false);
-
-            lseek(cfs_file, 0, SEEK_SET);
-            Superblock *superblock = malloc(sizeof(Superblock));
-            read(cfs_file, superblock, sizeof(Superblock));
-
-            lseek(cfs_file, (*current)->offset, SEEK_SET);
-            read(cfs_file, &currentMDS, superblock->metadata_size);
-            //check if name exists!
-            for(int i = 0; i < DATABLOCK_NUM; i++){
-                lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
-                for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++){
-                    read(cfs_file, &data, sizeof(data_type));
-                    if(data.active == true){
-                         printf("%s\n",data.filename);
-                         if(strcmp(data.filename, source) == 0){
-                             ///options
-                               ///EDW VAZOUME TA OPTIONS
-                             ///////
-                             //printf("Name %s exists already!\n",files);
-                             exists = true;
-                             tempdata.nodeid = data.nodeid;
-                         	 tempdata.offset = data.offset;
-                         	 strcpy(tempdata.filename, data.filename);
-                         	 tempdata.active = true;
-                             data.active = false;
-                             lseek(cfs_file, -sizeof(data_type), SEEK_CUR);
-                             write(cfs_file, &data, sizeof(data_type));
-                             i = DATABLOCK_NUM;
-                             break;
-                         }
-                    }
+                if ((file_offset = find_path(cfs_file, current, source, false))<0){
+                    printf("cfs_mv: failed to access %s: No such file or directory\n", source);
+                    source = NULL;
                 }
-            }
+                else{
+                    lseek(cfs_file, 0, SEEK_SET);
+                    Superblock *superblock = malloc(sizeof(Superblock));
+                    read(cfs_file, superblock, sizeof(Superblock));
 
-            if(exists){
-                lseek(cfs_file, dest_offset, SEEK_SET);
-                read(cfs_file, &destMDS, superblock->metadata_size);
-                for(int i = 0; i < DATABLOCK_NUM; i++){
-                    lseek(cfs_file, destMDS.data.datablocks[i], SEEK_SET);
-                    for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++){
-                        read(cfs_file, &data, sizeof(data_type));
-                        if(data.active == false){
-                             lseek(cfs_file, -sizeof(data_type), SEEK_CUR);
-                             write(cfs_file, &tempdata, sizeof(data_type));
-                             i = DATABLOCK_NUM;
-                             break;
+                    lseek(cfs_file, (*current)->offset, SEEK_SET);
+                    read(cfs_file, &currentMDS, superblock->metadata_size);
+                    //check if name exists!
+                    for(int i = 0; i < DATABLOCK_NUM; i++){
+                        lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
+                        for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++){
+                            read(cfs_file, &data, sizeof(data_type));
+                            if(data.active == true){
+                                 printf("%s\n",data.filename);
+                                 if(strcmp(data.filename, source) == 0){
+                                     ///options
+                                       ///EDW VAZOUME TA OPTIONS
+                                     ///////
+                                     //printf("Name %s exists already!\n",files);
+                                     exists = true;
+                                     tempdata.nodeid = data.nodeid;
+                                 	 tempdata.offset = data.offset;
+                                 	 strcpy(tempdata.filename, data.filename);
+                                 	 tempdata.active = true;
+                                     data.active = false;
+                                     lseek(cfs_file, -sizeof(data_type), SEEK_CUR);
+                                     write(cfs_file, &data, sizeof(data_type));
+                                     i = DATABLOCK_NUM;
+                                     break;
+                                 }
+                            }
                         }
                     }
+
+                    if(exists){
+                        lseek(cfs_file, dest_offset, SEEK_SET);
+                        read(cfs_file, &destMDS, superblock->metadata_size);
+                        for(int i = 0; i < DATABLOCK_NUM; i++){
+                            lseek(cfs_file, destMDS.data.datablocks[i], SEEK_SET);
+                            for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++){
+                                read(cfs_file, &data, sizeof(data_type));
+                                if(data.active == false){
+                                     lseek(cfs_file, -sizeof(data_type), SEEK_CUR);
+                                     write(cfs_file, &tempdata, sizeof(data_type));
+                                     i = DATABLOCK_NUM;
+                                     break;
+                                }
+                            }
+                        }
+                    }
+                    source = strtok(NULL, " ");
                 }
+                free(superblock);
             }
-            source = strtok(NULL, " ");
-            free(superblock);
         }
     }
     else printf("cfs_mv: execute first cfs_workwith\n");
@@ -812,40 +820,47 @@ void cfs_rm(int cfs_file,  list_node **current, char *path, bool r){
 void cfs_ln(int cfs_file,  list_node **current, char *source, char *output){
     if(cfs_file>0){
         Superblock *superblock = malloc(sizeof(Superblock));
-        int free_offset, source_offset = find_path(cfs_file, current, source, false),
-        output_offset = find_path(cfs_file, current, output, false);
+        int free_offset, source_offset, output_offset;
 
-        data_type data;
-        MDS mds, currentMDS, fileMDS;
-        lseek(cfs_file, 0, SEEK_SET);
-        read(cfs_file, superblock, sizeof(Superblock));
-        bool exists_already = false;
-        bool empty_space = false;
-        lseek(cfs_file, (*current)->offset, SEEK_SET);
-        read(cfs_file, &currentMDS, superblock->metadata_size);
-        //check if name exists!
-        for(int i = 0; i < DATABLOCK_NUM; i++){
-            lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
-            for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++){
-                read(cfs_file, &data, sizeof(data_type));
-                int current_pointer = lseek(cfs_file, 0, SEEK_CUR);
-                if(data.active == true){
-                    if(strcmp(data.filename, files) == 0){
-                        if(time_acc || time_edit){
-                            lseek(cfs_file, data.offset, SEEK_SET);
-                            read(cfs_file, &fileMDS, superblock->metadata_size);
-                            if(time_acc) fileMDS.access_time = time(0);
-                            if(time_edit) fileMDS.modification_time = time(0);
-                            lseek(cfs_file, data.offset, SEEK_SET);
-                            write(cfs_file, &fileMDS, superblock->metadata_size);
-                            lseek(cfs_file, current_pointer, SEEK_SET);
+        if ((source_offset = find_path(cfs_file, current, source, false))<0)
+            printf("cfs_ln: failed to access %s: No such file or directory\n", source);
+        if ((output_offset = find_path(cfs_file, current, output, false))<0)
+            printf("cfs_ln: failed to access %s: No such file or directory\n", output);
+
+        if(source>=0 && output>=0){
+            data_type data;
+            MDS mds, currentMDS, fileMDS;
+            lseek(cfs_file, 0, SEEK_SET);
+            read(cfs_file, superblock, sizeof(Superblock));
+            bool exists_already = false;
+            bool empty_space = false;
+            lseek(cfs_file, source_offset, SEEK_SET);
+            read(cfs_file, &currentMDS, superblock->metadata_size);
+
+            //check if name exists!
+            for(int i = 0; i < DATABLOCK_NUM; i++){
+                lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
+                for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++){
+                    read(cfs_file, &data, sizeof(data_type));
+                    int current_pointer = lseek(cfs_file, 0, SEEK_CUR);
+                    if(data.active == true){
+                        if(strcmp(data.filename, files) == 0){
+                            if(time_acc || time_edit){
+                                lseek(cfs_file, data.offset, SEEK_SET);
+                                read(cfs_file, &fileMDS, superblock->metadata_size);
+                                if(time_acc) fileMDS.access_time = time(0);
+                                if(time_edit) fileMDS.modification_time = time(0);
+                                lseek(cfs_file, data.offset, SEEK_SET);
+                                write(cfs_file, &fileMDS, superblock->metadata_size);
+                                lseek(cfs_file, current_pointer, SEEK_SET);
+                            }
+                            exists_already = true;
+                            i = DATABLOCK_NUM;
+                            break;
                         }
-                        exists_already = true;
-                        i = DATABLOCK_NUM;
-                        break;
+                    }else{
+                        empty_space = true;
                     }
-                }else{
-                    empty_space = true;
                 }
             }
         }
