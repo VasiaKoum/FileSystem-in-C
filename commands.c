@@ -91,6 +91,28 @@ int edit_commands(char *command,int cfs_file, list_node **current){
         char *path = strtok(check_path, "\n");
         // cfs_rm(cfs_file, current, path);
     }
+    else if(strncmp(command, (char*)"cfs_ln ", 7)==0 && strlen(command)>8) {
+        char *check_path = &(command[7]);
+        char *path = strtok(check_path, "\n");
+
+        cfs_ln(cfs_file, current, source, output);
+    }
+    else if(strncmp(command, (char*)"cfs_cat ", 8)==0 && strlen(command)>9) {
+        char *check_path = &(command[7]);
+        char *path = strtok(check_path, "\n");
+    }
+    else if(strncmp(command, (char*)"cfs_cp ", 7)==0 && strlen(command)>8) {
+        char *check_path = &(command[7]);
+        char *path = strtok(check_path, "\n");
+    }
+    else if(strncmp(command, (char*)"cfs_import ", 11)==0 && strlen(command)>12) {
+        char *check_path = &(command[7]);
+        char *path = strtok(check_path, "\n");
+    }
+    else if(strncmp(command, (char*)"cfs_export ", 11)==0 && strlen(command)>12) {
+        char *check_path = &(command[7]);
+        char *path = strtok(check_path, "\n");
+    }
     else printf("Wrong command, type again.\n");
     return cfs_file;
 }
