@@ -14,7 +14,7 @@ void cfs_pwd(int, list_node**);
 void cfs_cd(int, list_node**, char*);
 void cfs_ls(int, bool, bool, bool, bool, bool, bool, char*, list_node**, char*);
 void cfs_mv(int,  list_node**, char*, char*, bool);
-void cfs_rm(int,  list_node**, char*);
+void cfs_rm(int,  list_node **, char *, bool);
 int find_path(int, list_node**, char *, bool);
 void destroy_list(list_node **);
 void add_to_bitmap(int, int);
