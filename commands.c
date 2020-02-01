@@ -1035,10 +1035,11 @@ void cfs_export(int cfs_file,  list_node **current, char *sources, char *directo
         DIR *dir_export, *open_dir;
         FILE *write_fp;
         struct dirent *dir;
-        if ((dir_export = opendir(all_sources)) != NULL){
+        if ((dir_export = opendir(directory)) != NULL){
             while(all_sources!=NULL){
+                printf("\n");
                 if(strcmp(all_sources, directory)!=0){
-                    if((source_offset = find_path(cfs_file, current, all_sources, true))<0)
+                    if((source_offset = find_path(cfs_file, current, all_sources, false))<0)
                         printf("cfs_export: failed to access %s: no such file or directory\n", all_sources);
                     else{
                         data_type data;
