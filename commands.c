@@ -82,10 +82,23 @@ int edit_commands(char *command,int cfs_file, list_node **current){
     }
     else if(strncmp(command, (char*)"cfs_mv ", 7)==0 && strlen(command)>8) {
         char *check_path = &(command[7]);
-        char *path = strtok(check_path, "\n");
         bool i=false;
-        // cfs_mv(cfs_file, current, "./here ./here1", "./dir1", i);
-        cfs_mv(cfs_file, current, "./xaris", "./dir1", i);
+        char path[FILENAME_SIZE]; memset(path, 0, FILENAME_SIZE);
+        strtok(check_path, "\n");
+        if(strncmp(command, "cfs_mv -i ", 10)==0 ) { i=true; strncpy(path, check_path+3, strlen(check_path)); }
+        else strncpy(path, check_path, strlen(check_path));
+
+        char *tmp=check_path, *destination=check_path, *source=path;
+        tmp = strrchr(command, ' ');
+        if(tmp!=NULL) {
+            destination = tmp+1;
+            // running with:
+            // cfs_mv -i ./s1 ./s2 ./s3 ./dest
+            // cfs_mv ./s1 ./s2 ./s3 ./dest
+            printf("option: [%d], source: [%s], destination: [%s]\n", i, source, destination);
+            // cfs_mv(cfs_file, current, source, destination, i);
+        }
+        else printf("cfs_mv: missing file operand\n");
     }
     else if(strncmp(command, (char*)"cfs_rm ", 7)==0 && strlen(command)>8) {
         char *check_path = &(command[7]);
@@ -111,14 +124,30 @@ int edit_commands(char *command,int cfs_file, list_node **current){
         char *path = strtok(check_path, "\n");
     }
     else if(strncmp(command, (char*)"cfs_import ", 11)==0 && strlen(command)>12) {
-        char *check_path = &(command[7]);
-        char *path = strtok(check_path, "\n");
-        // cfs_import(cfs_file, current, sources, directory);
+        char *check_path = &(command[11]);
+        strtok(check_path, "\n");
+        char *tmp = strrchr(command, ' '), *destination;
+        if(tmp!=NULL) {
+            destination = tmp+1;
+            // running with:
+            // cfs_import ./s1 ./s2 ./s3 ./dest
+            // printf("source: [%s], destination: [%s]\n", check_path, destination);
+            cfs_import(cfs_file, current, check_path, directory);
+        }
+        else printf("cfs_import: missing file operand\n");
     }
     else if(strncmp(command, (char*)"cfs_export ", 11)==0 && strlen(command)>12) {
-        char *check_path = &(command[7]);
-        char *path = strtok(check_path, "\n");
-        // cfs_export(cfs_file, current, sources, directory);
+        char *check_path = &(command[11]);
+        strtok(check_path, "\n");
+        char *tmp = strrchr(command, ' '), *destination;
+        if(tmp!=NULL) {
+            destination = tmp+1;
+            // running with:
+            // cfs_export ./s1 ./s2 ./s3 ./dest
+            // printf("source: [%s], destination: [%s]\n", check_path, destination);
+            cfs_export(cfs_file, current, check_path, directory);
+        }
+        else printf("cfs_export: missing file operand\n");
     }
     else { strtok(command, "\n"); printf("%s: command not found\n", command); }
     return cfs_file;
@@ -749,7 +778,7 @@ void cfs_mv(int cfs_file,  list_node **current, char *path_source, char *destina
                         lseek(cfs_file, dest_offset, SEEK_SET);
                         read(cfs_file, &destMDS, superblock->metadata_size);
                         if(destMDS.type != 2){
-                            
+
 
 
 
