@@ -126,9 +126,9 @@ int edit_commands(char *command,int cfs_file, list_node **current){
     else if(strncmp(command, (char*)"cfs_import ", 11)==0 && strlen(command)>12) {
         char *check_path = &(command[11]);
         strtok(check_path, "\n");
-        char *tmp = strrchr(command, ' '), *destination;
+        char *tmp = strrchr(command, ' '), *directory;
         if(tmp!=NULL) {
-            destination = tmp+1;
+            directory = tmp+1;
             // running with:
             // cfs_import ./s1 ./s2 ./s3 ./dest
             // printf("source: [%s], destination: [%s]\n", check_path, destination);
@@ -139,9 +139,9 @@ int edit_commands(char *command,int cfs_file, list_node **current){
     else if(strncmp(command, (char*)"cfs_export ", 11)==0 && strlen(command)>12) {
         char *check_path = &(command[11]);
         strtok(check_path, "\n");
-        char *tmp = strrchr(command, ' '), *destination;
+        char *tmp = strrchr(command, ' '), *directory;
         if(tmp!=NULL) {
-            destination = tmp+1;
+            directory = tmp+1;
             // running with:
             // cfs_export ./s1 ./s2 ./s3 ./dest
             // printf("source: [%s], destination: [%s]\n", check_path, destination);
@@ -988,9 +988,33 @@ void cfs_ln(int cfs_file,  list_node **current, char *source, char *output){
 }
 
 void cfs_import(int cfs_file,  list_node **current, char *sources, char *directory){
+    if(cfs_file>0){
+        char *all_sources;
+        all_sources = strtok(sources, " ");
+        while(all_sources!=NULL){
+            if(strcmp(all_sources, directory)!=0){
+                printf("source is [%s]\n", all_sources);
 
+
+                
+            }
+            all_sources = strtok(NULL, " ");
+        }
+    }
+    else printf("cfs_import: execute first cfs_workwith\n");
 }
 
 void cfs_export(int cfs_file,  list_node **current, char *sources, char *directory){
+    if(cfs_file>0){
+        char *all_sources;
+        all_sources = strtok(sources, " ");
+        while(all_sources!=NULL){
+            if(strcmp(all_sources, directory)!=0){
+                printf("source is [%s]\n", all_sources);
 
+            }
+            all_sources = strtok(NULL, " ");
+        }
+    }
+    else printf("cfs_export: execute first cfs_workwith\n");
 }
