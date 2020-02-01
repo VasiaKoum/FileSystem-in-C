@@ -5,6 +5,9 @@
 #include <fcntl.h>      // to have access to flags def
 #include <unistd.h>
 #include <time.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include "commands.h"
 #define PERMS 0644      // set access permissions
 #define FILENAME_SIZE 200
@@ -563,6 +566,7 @@ void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, lis
         Superblock *superblock = malloc(sizeof(Superblock));
         int free_offset;
         strtok(files, " ");
+
         while(files != NULL){
             data_type data;
             MDS mds, currentMDS, fileMDS;
@@ -700,7 +704,6 @@ void cfs_ls(int cfs_file, bool a, bool r, bool l, bool u, bool d, bool h, char *
                             else if(fileMDS.type == 1) printf("%s \t FILE \t %d \t  (TC)%s  (TA)%s  (TM)%s\n", data.filename, data.offset, create, access, modify);
                             else printf("%s \t LK \t %d \t  (TC)%s  (TA)%s  (TM)%s\n", data.filename, data.offset, create, access, modify);
                             lseek(cfs_file, current_pointer, SEEK_SET);
-                            printf("PARENT %d\n", fileMDS.parent_offset);
                         }
                         else{
                             if(strncmp(data.filename, ".", 1)!=0) printf("%s\n",data.filename);
@@ -994,9 +997,26 @@ void cfs_import(int cfs_file,  list_node **current, char *sources, char *directo
         while(all_sources!=NULL){
             if(strcmp(all_sources, directory)!=0){
                 printf("source is [%s]\n", all_sources);
+                DIR *dir_import;
+                struct dirent *dir;
+                FILE *file_import;
+                if ((dir_import = opendir(all_sources)) != NULL){
+                    // cfs_mkdir(cfs_file, all_sources, current);
+                    while((dir = readdir(dir_import)) != NULL) {
+                        printf ("In: %s -> [%s]\n", all_sources, dir->d_name);
+                        if(strcmp(dir->d_name, ".")!=0 && strcmp(dir->d_name, ".")!=0) {
+
+                        }
+                    }
+                    closedir(dir_import);
+                }
+                else if((file_import = fopen(all_sources, "rb")) != NULL){
+                    printf ("In: %s\n", all_sources);
+                    fclose(file_import);
+                }
+                else printf("cfs_import: failed to access %s: No such file or directory\n", all_sources);
 
 
-                
             }
             all_sources = strtok(NULL, " ");
         }
@@ -1007,14 +1027,53 @@ void cfs_import(int cfs_file,  list_node **current, char *sources, char *directo
 void cfs_export(int cfs_file,  list_node **current, char *sources, char *directory){
     if(cfs_file>0){
         char *all_sources;
+        int source_offset;
         all_sources = strtok(sources, " ");
-        while(all_sources!=NULL){
-            if(strcmp(all_sources, directory)!=0){
-                printf("source is [%s]\n", all_sources);
 
+        char pathname[2*FILENAME_SIZE];
+
+        DIR *dir_export, *open_dir;
+        FILE *write_fp;
+        struct dirent *dir;
+        if ((dir_export = opendir(all_sources)) != NULL){
+            while(all_sources!=NULL){
+                if(strcmp(all_sources, directory)!=0){
+                    if((source_offset = find_path(cfs_file, current, all_sources, true))<0)
+                        printf("cfs_export: failed to access %s: no such file or directory\n", all_sources);
+                    else{
+                        data_type data;
+                        MDS currentMDS, fileMDS;
+                        lseek(cfs_file, 0, SEEK_SET);
+                        Superblock *superblock = malloc(sizeof(Superblock));
+                        read(cfs_file, superblock, sizeof(Superblock));
+                        lseek(cfs_file, source_offset, SEEK_SET);
+                        read(cfs_file, &fileMDS, superblock->metadata_size);
+
+                        if(fileMDS.type == 1){
+                            printf("its file\n");
+                            memset(pathname, 0, 2*FILENAME_SIZE);
+                            sprintf(pathname, "/%s/%s", directory, fileMDS.filename);
+                            write_fp = fopen(pathname,"wb");
+
+                            // fwrite(buffer,sizeof(buffer),1,write_fp);
+
+                            fclose(write_fp);
+                        }
+                        else if(fileMDS.type == 2){
+                            printf("its dir\n");
+                            memset(pathname, 0, FILENAME_SIZE);
+                            sprintf(pathname, "/%s/%s", directory, fileMDS.filename);
+                            mkdir(pathname, S_IRWXG);
+
+                        }
+                        free(superblock);
+                    }
+                }
+                all_sources = strtok(NULL, " ");
             }
-            all_sources = strtok(NULL, " ");
+            closedir(dir_export);
         }
+        else printf("cfs_export: opendir: failed to access %s: no such file or directory\n", directory);
     }
     else printf("cfs_export: execute first cfs_workwith\n");
 }
