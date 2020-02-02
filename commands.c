@@ -133,8 +133,7 @@ int edit_commands(char *command,int cfs_file, list_node **current){
         if(tmp!=NULL) {
             directory = tmp+1;
             // running with:
-            // cfs_import ./s1 ./s2 ./s3 ./dest
-            // printf("source: [%s], destination: [%s]\n", check_path, destination);
+            // cfs_import ./here/dir1 ./here/new.txt ./dest
             cfs_import(cfs_file, current, check_path, directory);
         }
         else printf("cfs_import: missing file operand\n");
@@ -997,22 +996,21 @@ void cfs_import(int cfs_file,  list_node **current, char *sources, char *directo
         while(all_sources!=NULL){
             if(strcmp(all_sources, directory)!=0){
                 printf("source is [%s]\n", all_sources);
-                DIR *dir_import;
-                struct dirent *dir;
-                FILE *file_import;
+                DIR *dir_import; struct dirent *dir;
+                int file_import;
                 if ((dir_import = opendir(all_sources)) != NULL){
                     // cfs_mkdir(cfs_file, all_sources, current);
                     while((dir = readdir(dir_import)) != NULL) {
-                        printf ("In: %s -> [%s]\n", all_sources, dir->d_name);
-                        if(strcmp(dir->d_name, ".")!=0 && strcmp(dir->d_name, ".")!=0) {
-
+                        if(strcmp(dir->d_name, ".")!=0 && strcmp(dir->d_name, "..")!=0) {
+                            printf ("In: %s -> [%s]\n", all_sources, dir->d_name);
                         }
                     }
                     closedir(dir_import);
                 }
-                else if((file_import = fopen(all_sources, "rb")) != NULL){
+                else if((file_import = open(all_sources, O_RDONLY))>0){
                     printf ("In: %s\n", all_sources);
-                    fclose(file_import);
+                    
+                    close(file_import);
                 }
                 else printf("cfs_import: failed to access %s: No such file or directory\n", all_sources);
 
@@ -1064,8 +1062,19 @@ void cfs_export(int cfs_file,  list_node **current, char *sources, char *directo
                             sprintf(pathname, "./%s/%s", directory, fileMDS.filename);
                             fd = open(pathname, O_WRONLY | O_CREAT, 0644);
                             if(fd>0){
-
-
+                                int max_size = fileMDS.size, ii=0;
+                                while((ii<DATABLOCK_NUM) && (max_size>0)){
+                                    if(max_size>0){
+                                        lseek(cfs_file, fileMDS.data.datablocks[ii], SEEK_SET);
+                                        char *buffer=malloc(BLOCK_SIZE);
+                                        read(cfs_file, buffer, BLOCK_SIZE);
+                                        write(fd, buffer, BLOCK_SIZE);
+                                        free(buffer);
+                                        if(max_size>BLOCK_SIZE) max_size -=BLOCK_SIZE;
+                                        else max_size=0;
+                                    }
+                                    ii++;
+                                }
                                 close(fd);
                             }
                             else printf("cfs_export: open: failed to access %s: no such file or directory\n", pathname);
@@ -1089,10 +1098,18 @@ void cfs_export(int cfs_file,  list_node **current, char *sources, char *directo
                                         if (allMDS.type == 1){
                                             fd = open(new_path_name, O_WRONLY | O_CREAT, 0644);
                                             if(fd>0){
-                                                // write(fd, , 36)
-                                                int max_size = allMDS.size;
-                                                while(max_size>0){
-                                                    
+                                                int max_size = allMDS.size, ii=0;
+                                                while((ii<DATABLOCK_NUM) && (max_size>0)){
+                                                    if(max_size>0){
+                                                        lseek(cfs_file, allMDS.data.datablocks[ii], SEEK_SET);
+                                                        char *buffer=malloc(BLOCK_SIZE);
+                                                        read(cfs_file, buffer, BLOCK_SIZE);
+                                                        write(fd, buffer, BLOCK_SIZE);
+                                                        free(buffer);
+                                                        if(max_size>BLOCK_SIZE) max_size -=BLOCK_SIZE;
+                                                        else max_size=0;
+                                                    }
+                                                    ii++;
                                                 }
                                                 close(fd);
                                             }
