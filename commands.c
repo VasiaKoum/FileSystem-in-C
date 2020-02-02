@@ -146,7 +146,8 @@ int edit_commands(char *command,int cfs_file, list_node **current){
         if(tmp!=NULL) {
             directory = tmp+1;
             // running with:
-            // cfs_export ./s1 ./s2 ./s3 ./dest
+            // cfs_export ./dir1/new.txt here
+            // cfs_export ./dir1/new.txt ./dir1 ./dir2 here
             // printf("source: [%s], destination: [%s]\n", check_path, destination);
             cfs_export(cfs_file, current, check_path, directory);
         }
@@ -226,8 +227,7 @@ int find_path(int cfs_file, list_node **current, char *path, bool change_pathlis
     if(cfs_file>0){
         Superblock *superblock = malloc(sizeof(Superblock));
         MDS mds, currentMDS;
-        char str_path[FILENAME_SIZE];
-        strcpy(str_path, path);
+        char str_path[FILENAME_SIZE]; memset(str_path, 0, FILENAME_SIZE); strcpy(str_path, path);
         char *full_path = str_path;
         if(strncmp(full_path, "/", 1)==0) relative_path=false;
         full_path = strtok(str_path, "/");
@@ -1026,24 +1026,33 @@ void cfs_import(int cfs_file,  list_node **current, char *sources, char *directo
 
 void cfs_export(int cfs_file,  list_node **current, char *sources, char *directory){
     if(cfs_file>0){
-        char *all_sources;
         int source_offset;
-        all_sources = strtok(sources, " ");
-
-        char pathname[2*FILENAME_SIZE];
-
+        data_type data;
+        MDS allMDS, fileMDS;
+        int size = strlen(sources)+1;
+        char *check_path = malloc(size); memset(check_path, 0, size); strcpy(check_path, sources);
+        char str_source[FILENAME_SIZE];
+        char *pathname = malloc(strlen(directory)+FILENAME_SIZE+5);
         DIR *dir_export, *open_dir;
-        FILE *write_fp;
+        FILE *write_fp; int fd;
         struct dirent *dir;
+        int index=0;
+
         if ((dir_export = opendir(directory)) != NULL){
-            while(all_sources!=NULL){
-                printf("\n");
-                if(strcmp(all_sources, directory)!=0){
-                    if((source_offset = find_path(cfs_file, current, all_sources, false))<0)
-                        printf("cfs_export: failed to access %s: no such file or directory\n", all_sources);
+            while(check_path[index] != '\0'){
+                int ptr=0; int index_begin=index;
+                while((check_path[index]!=' ') && (check_path[index] != '\0')){
+                    index++;
+                    ptr++;
+                }
+                memset(str_source, 0, FILENAME_SIZE);
+                strncpy(str_source, check_path+index_begin, ptr);
+                index++;
+
+                if(strcmp(str_source, directory)!=0){
+                    if((source_offset = find_path(cfs_file, current, str_source, false))<0)
+                        printf("cfs_export: failed to access %s: no such file or directory\n", str_source);
                     else{
-                        data_type data;
-                        MDS currentMDS, fileMDS;
                         lseek(cfs_file, 0, SEEK_SET);
                         Superblock *superblock = malloc(sizeof(Superblock));
                         read(cfs_file, superblock, sizeof(Superblock));
@@ -1051,30 +1060,62 @@ void cfs_export(int cfs_file,  list_node **current, char *sources, char *directo
                         read(cfs_file, &fileMDS, superblock->metadata_size);
 
                         if(fileMDS.type == 1){
-                            printf("its file\n");
-                            memset(pathname, 0, 2*FILENAME_SIZE);
-                            sprintf(pathname, "/%s/%s", directory, fileMDS.filename);
-                            write_fp = fopen(pathname,"wb");
+                            memset(pathname, 0, strlen(directory)+FILENAME_SIZE+5);
+                            sprintf(pathname, "./%s/%s", directory, fileMDS.filename);
+                            fd = open(pathname, O_WRONLY | O_CREAT, 0644);
+                            if(fd>0){
 
-                            // fwrite(buffer,sizeof(buffer),1,write_fp);
 
-                            fclose(write_fp);
+                                close(fd);
+                            }
+                            else printf("cfs_export: open: failed to access %s: no such file or directory\n", pathname);
                         }
                         else if(fileMDS.type == 2){
-                            printf("its dir\n");
-                            memset(pathname, 0, FILENAME_SIZE);
-                            sprintf(pathname, "/%s/%s", directory, fileMDS.filename);
-                            mkdir(pathname, S_IRWXG);
+                            memset(pathname, 0, strlen(directory)+FILENAME_SIZE+5);
+                            sprintf(pathname, "%s/%s", directory, fileMDS.filename);
+                            if(mkdir(pathname, S_IRWXG)<0) printf("not create dir:[%s]\n", pathname);
+
+                            for(int i = 0; i < DATABLOCK_NUM; i++){
+                                lseek(cfs_file, fileMDS.data.datablocks[i], SEEK_SET);
+                                for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++){
+                                    read(cfs_file, &data, sizeof(data_type));
+                                    int current_pointer = lseek(cfs_file, 0, SEEK_CUR);
+                                    if(data.active == true){
+                                        lseek(cfs_file, data.offset, SEEK_SET);
+                                        read(cfs_file, &allMDS, superblock->metadata_size);
+                                        char new_path_name[FILENAME_SIZE*2];
+                                        memset(new_path_name, 0, FILENAME_SIZE*2);
+                                        sprintf(new_path_name, "%s/%s", pathname, allMDS.filename);
+                                        if (allMDS.type == 1){
+                                            fd = open(new_path_name, O_WRONLY | O_CREAT, 0644);
+                                            if(fd>0){
+                                                // write(fd, , 36)
+                                                int max_size = allMDS.size;
+                                                while(max_size>0){
+                                                    
+                                                }
+                                                close(fd);
+                                            }
+                                            else printf("cfs_export: open: failed to access %s: no such file or directory\n", pathname);
+                                        }
+                                        else if (allMDS.type == 2){
+                                            if(mkdir(new_path_name, S_IRWXG)<0) printf("not create dir:[%s]\n", new_path_name);
+                                        }
+                                        lseek(cfs_file, current_pointer, SEEK_SET);
+                                    }
+                                }
+                            }
 
                         }
                         free(superblock);
                     }
                 }
-                all_sources = strtok(NULL, " ");
+
             }
             closedir(dir_export);
         }
         else printf("cfs_export: opendir: failed to access %s: no such file or directory\n", directory);
+        free(pathname); free(check_path);
     }
     else printf("cfs_export: execute first cfs_workwith\n");
 }
