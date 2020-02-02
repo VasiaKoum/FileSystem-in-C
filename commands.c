@@ -133,7 +133,7 @@ int edit_commands(char *command,int cfs_file, list_node **current){
         if(tmp!=NULL) {
             directory = tmp+1;
             // running with:
-            // cfs_import ./here/dir1 ./here/new.txt ./dest
+            // cfs_import ./here/dir1 ./here/new.txt sss
             cfs_import(cfs_file, current, check_path, directory);
         }
         else printf("cfs_import: missing file operand\n");
@@ -481,7 +481,8 @@ int cfs_workwith(int cfs_file, char *filename, list_node **current){
     return cfs_file;
 }
 
-void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
+int cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
+    int return_offset = -1;
     if(cfs_file>0){
         Superblock *superblock = malloc(sizeof(Superblock));
         int free_offset;
@@ -495,7 +496,7 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
             read(cfs_file, superblock, sizeof(Superblock));
 
             free_offset = get_space(cfs_file);
-
+            return_offset = free_offset;
             superblock->latest_nodeid++;
             mds.nodeid = superblock->latest_nodeid;
             mds.offset = free_offset;
@@ -555,15 +556,16 @@ void cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
         free(superblock);
     }
     else printf("cfs_mkdir: execute first cfs_workwith\n");
+    return return_offset;
 }
 
-void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, list_node **current){
+int cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, list_node **current){
     char *files = filenames;
-    int fd_current;
+    int fd_current, return_offset=-1;
 
     if(cfs_file>0){
         Superblock *superblock = malloc(sizeof(Superblock));
-        int free_offset;
+        int free_offset, source_offset;
         strtok(files, " ");
 
         while(files != NULL){
@@ -591,6 +593,7 @@ void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, lis
                                 lseek(cfs_file, data.offset, SEEK_SET);
                                 write(cfs_file, &fileMDS, superblock->metadata_size);
                                 lseek(cfs_file, current_pointer, SEEK_SET);
+                                return_offset = data.offset;
                             }
                             exists_already = true;
                             i = DATABLOCK_NUM;
@@ -605,6 +608,7 @@ void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, lis
             if(!exists_already && empty_space){
                 //make mds
                 free_offset = get_space(cfs_file);
+                return_offset = free_offset;
                 superblock->latest_nodeid++;
                 mds.nodeid = superblock->latest_nodeid;
                 mds.size = 0;
@@ -648,6 +652,7 @@ void cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, lis
         free(superblock);
     }
     else printf("cfs_touch: execute first cfs_workwith\n");
+    return return_offset;
 }
 
 void cfs_pwd(int cfs_file, list_node **current){
@@ -851,7 +856,7 @@ void cfs_rm(int cfs_file,  list_node **current, char *path, bool r){
                             read(cfs_file, &tempMDS, superblock->metadata_size);
                             lseek(cfs_file, current_offset, SEEK_SET);
                             if(tempMDS.type != 2){
-                                printf("file %s just deleted\n",data.filename);
+                                printf("cfs_rm: file %s just deleted\n",data.filename);
                                 deleted = true;
                                 data.active = false;
                                 lseek(cfs_file, -sizeof(data_type), SEEK_CUR);
@@ -861,7 +866,7 @@ void cfs_rm(int cfs_file,  list_node **current, char *path, bool r){
                                 // break;
                             }else if(r){
                                 cfs_rm(cfs_file, current, data.filename, true);
-                                printf("folder %s just deleted\n",data.filename);
+                                printf("cfs_rm: dir %s just deleted\n",data.filename);
                                 deleted = true;
                                 data.active = false;
                                 lseek(cfs_file, -sizeof(data_type), SEEK_CUR);
@@ -873,7 +878,7 @@ void cfs_rm(int cfs_file,  list_node **current, char *path, bool r){
                     }
                 }
             }else{
-                printf("%s: not a directory \n",full_path);
+                printf("cfs_rm: %s: not a directory \n",full_path);
             }
             full_path = strtok(NULL, "/");
             free(superblock);
@@ -991,33 +996,99 @@ void cfs_ln(int cfs_file,  list_node **current, char *source, char *output){
 
 void cfs_import(int cfs_file,  list_node **current, char *sources, char *directory){
     if(cfs_file>0){
-        char *all_sources;
-        all_sources = strtok(sources, " ");
-        while(all_sources!=NULL){
-            if(strcmp(all_sources, directory)!=0){
-                printf("source is [%s]\n", all_sources);
+        data_type data;
+        MDS allMDS, fileMDS;
+        int index=0, size = strlen(sources)+1, file_offset;
+        char str_source[FILENAME_SIZE];
+        char *check_path = malloc(size); memset(check_path, 0, size); strcpy(check_path, sources);
+        while(check_path[index] != '\0'){
+            lseek(cfs_file, 0, SEEK_SET);
+            Superblock *superblock = malloc(sizeof(Superblock));
+            read(cfs_file, superblock, sizeof(Superblock));
+
+            int ptr=0; int index_begin=index;
+            while((check_path[index]!=' ') && (check_path[index] != '\0')){
+                index++;
+                ptr++;
+            }
+            memset(str_source, 0, FILENAME_SIZE);
+            strncpy(str_source, check_path+index_begin, ptr);
+            index++;
+
+            if(strcmp(str_source, directory)!=0){
                 DIR *dir_import; struct dirent *dir;
                 int file_import;
-                if ((dir_import = opendir(all_sources)) != NULL){
-                    // cfs_mkdir(cfs_file, all_sources, current);
-                    while((dir = readdir(dir_import)) != NULL) {
-                        if(strcmp(dir->d_name, ".")!=0 && strcmp(dir->d_name, "..")!=0) {
-                            printf ("In: %s -> [%s]\n", all_sources, dir->d_name);
+                if ((dir_import = opendir(str_source)) != NULL){
+                    cfs_cd(cfs_file, current, directory);
+
+                    if((find_file(cfs_file, directory))>0){
+                        char *name = strrchr(str_source, '/');
+                        if(name == NULL) name = str_source;
+                        else name++;
+                        if(*name!='\0'){
+                            printf("MAKE DIR %s\n", name);
+                            // cfs_mkdir(cfs_file, name, current);
                         }
                     }
+
+                    while((dir = readdir(dir_import)) != NULL) {
+                        if(strcmp(dir->d_name, ".")!=0 && strcmp(dir->d_name, "..")!=0) {
+                            // printf ("In: %s -> [%s]\n", str_source, dir->d_name);
+                        }
+
+                    }
+                    cfs_cd(cfs_file, current, "..");
                     closedir(dir_import);
                 }
-                else if((file_import = open(all_sources, O_RDONLY))>0){
-                    printf ("In: %s\n", all_sources);
-                    
+                else if((file_import = open(str_source, O_RDONLY))>0){
+                    int size_file = lseek(file_import, 0, SEEK_END);
+                    lseek(file_import, 0, SEEK_SET);
+                    if(size_file<=BLOCK_SIZE*DATABLOCK_NUM){
+                        if((find_file(cfs_file, directory))>0){
+                            cfs_cd(cfs_file, current, directory);
+                            char *name = strrchr(str_source, '/');
+                            if(name == NULL) name = str_source;
+                            else name++;
+                            if(*name!='\0'){
+                                printf("MAKE FILE: %s\n", name);
+                                if((file_offset = cfs_touch(cfs_file, true, true, name, current)>0){
+                                    lseek(cfs_file, file_offset, SEEK_SET);
+                                    read(cfs_file, &fileMDS, superblock->metadata_size);
+
+                                    lseek(cfs_file, file_offset, SEEK_SET);
+                                    read(cfs_file, &fileMDS, superblock->metadata_size);
+                                    fileMDS.size = size_file;
+                                    write(cfs_file, &fileMDS, superblock->metadata_size);
+
+                                    int ii=0, current_size = BLOCK_SIZE;
+                                    while((ii<DATABLOCK_NUM) && (size_file>0)){
+                                        if(size_file>0){
+                                            lseek(cfs_file, fileMDS.data.datablocks[ii], SEEK_SET);
+                                            char *buffer=malloc(BLOCK_SIZE);
+                                            if(size_file<BLOCK_SIZE) current_size = size_file;
+                                            read(file_import, buffer, current_size);
+                                            write(cfs_file, buffer, current_size);
+                                            free(buffer);
+                                            if(size_file>BLOCK_SIZE) size_file -=BLOCK_SIZE;
+                                            else size_file=0;
+                                        }
+                                        ii++;
+                                    }
+
+                                }
+                            }
+                            cfs_cd(cfs_file, current, "..");
+                        }
+                        else printf("cfs_import: %s: No such file or directory\n", directory);
+                    }
+                    else printf("cfs_import: no enough space for file\n");
                     close(file_import);
                 }
-                else printf("cfs_import: failed to access %s: No such file or directory\n", all_sources);
-
-
+                else printf("cfs_import: failed to access %s: No such file or directory\n", str_source);
             }
-            all_sources = strtok(NULL, " ");
+            free(superblock);
         }
+        free(check_path);
     }
     else printf("cfs_import: execute first cfs_workwith\n");
 }
@@ -1062,13 +1133,14 @@ void cfs_export(int cfs_file,  list_node **current, char *sources, char *directo
                             sprintf(pathname, "./%s/%s", directory, fileMDS.filename);
                             fd = open(pathname, O_WRONLY | O_CREAT, 0644);
                             if(fd>0){
-                                int max_size = fileMDS.size, ii=0;
+                                int max_size = fileMDS.size, ii=0, current_size = BLOCK_SIZE;
                                 while((ii<DATABLOCK_NUM) && (max_size>0)){
                                     if(max_size>0){
                                         lseek(cfs_file, fileMDS.data.datablocks[ii], SEEK_SET);
                                         char *buffer=malloc(BLOCK_SIZE);
-                                        read(cfs_file, buffer, BLOCK_SIZE);
-                                        write(fd, buffer, BLOCK_SIZE);
+                                        if(max_size<BLOCK_SIZE) current_size = max_size;
+                                        read(cfs_file, buffer, current_size);
+                                        write(fd, buffer, current_size);
                                         free(buffer);
                                         if(max_size>BLOCK_SIZE) max_size -=BLOCK_SIZE;
                                         else max_size=0;
