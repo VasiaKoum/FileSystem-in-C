@@ -1051,21 +1051,19 @@ void cfs_import(int cfs_file,  list_node **current, char *sources, char *directo
                             else name++;
                             if(*name!='\0'){
                                 printf("MAKE FILE: %s\n", name);
-                                if((file_offset = cfs_touch(cfs_file, true, true, name, current)>0){
-                                    lseek(cfs_file, file_offset, SEEK_SET);
-                                    read(cfs_file, &fileMDS, superblock->metadata_size);
-
+                                if((file_offset = cfs_touch(cfs_file, true, true, name, current))>0){
                                     lseek(cfs_file, file_offset, SEEK_SET);
                                     read(cfs_file, &fileMDS, superblock->metadata_size);
                                     fileMDS.size = size_file;
+                                    lseek(cfs_file, file_offset, SEEK_SET);
                                     write(cfs_file, &fileMDS, superblock->metadata_size);
 
                                     int ii=0, current_size = BLOCK_SIZE;
                                     while((ii<DATABLOCK_NUM) && (size_file>0)){
                                         if(size_file>0){
                                             lseek(cfs_file, fileMDS.data.datablocks[ii], SEEK_SET);
-                                            char *buffer=malloc(BLOCK_SIZE);
                                             if(size_file<BLOCK_SIZE) current_size = size_file;
+                                            char *buffer=malloc(current_size+1); memset(buffer, 0, current_size+1);
                                             read(file_import, buffer, current_size);
                                             write(cfs_file, buffer, current_size);
                                             free(buffer);
@@ -1137,8 +1135,8 @@ void cfs_export(int cfs_file,  list_node **current, char *sources, char *directo
                                 while((ii<DATABLOCK_NUM) && (max_size>0)){
                                     if(max_size>0){
                                         lseek(cfs_file, fileMDS.data.datablocks[ii], SEEK_SET);
-                                        char *buffer=malloc(BLOCK_SIZE);
                                         if(max_size<BLOCK_SIZE) current_size = max_size;
+                                        char *buffer=malloc(current_size+1); memset(buffer, 0, current_size+1);
                                         read(cfs_file, buffer, current_size);
                                         write(fd, buffer, current_size);
                                         free(buffer);
