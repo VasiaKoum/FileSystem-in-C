@@ -1082,7 +1082,7 @@ void cfs_import(int cfs_file,  list_node **current, char *sources, char *directo
 
             if(strcmp(str_source, directory)!=0){
                 DIR *dir_import; struct dirent *dir;
-                int file_import;
+                int file_import, dir_offset=-1;
                 if ((dir_import = opendir(str_source)) != NULL){
                     cfs_cd(cfs_file, current, directory);
 
@@ -1091,16 +1091,23 @@ void cfs_import(int cfs_file,  list_node **current, char *sources, char *directo
                         if(name == NULL) name = str_source;
                         else name++;
                         if(*name!='\0'){
-                            printf("MAKE DIR %s\n", name);
-                            // cfs_mkdir(cfs_file, name, current);
-                        }
-                    }
 
-                    while((dir = readdir(dir_import)) != NULL) {
-                        if(strcmp(dir->d_name, ".")!=0 && strcmp(dir->d_name, "..")!=0) {
-                            // printf ("In: %s -> [%s]\n", str_source, dir->d_name);
-                        }
+                            dir_offset = cfs_mkdir(cfs_file, name, current);
+                            if(dir_offset>0){
+                                while((dir = readdir(dir_import)) != NULL) {
+                                    if(strcmp(dir->d_name, ".")!=0 && strcmp(dir->d_name, "..")!=0) {
 
+                                        char *source_filename=malloc(strlen(str_source)+FILENAME_SIZE);
+                                        memset(source_filename,0, strlen(str_source)+FILENAME_SIZE);
+                                        sprintf(source_filename, "%s/%s", str_source, dir->d_name);
+
+                                        cfs_import(cfs_file,  current, source_filename, name);
+                                        free(source_filename);
+                                    }
+                                }
+                            }
+
+                        }
                     }
                     cfs_cd(cfs_file, current, "..");
                     closedir(dir_import);
@@ -1115,7 +1122,6 @@ void cfs_import(int cfs_file,  list_node **current, char *sources, char *directo
                             if(name == NULL) name = str_source;
                             else name++;
                             if(*name!='\0'){
-                                printf("MAKE FILE: %s\n", name);
                                 if((file_offset = cfs_touch(cfs_file, true, true, name, current))>0){
                                     lseek(cfs_file, file_offset, SEEK_SET);
                                     read(cfs_file, &fileMDS, superblock->metadata_size);
