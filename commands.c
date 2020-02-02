@@ -927,7 +927,11 @@ void cfs_rm(int cfs_file,  list_node **current, char *path, bool r){
                                 write(cfs_file, &data, sizeof(data_type));
                                 delete_from_bitmap(data.offset, cfs_file);
                             }else if(r){
-                                cfs_rm(cfs_file, current, data.filename, true);
+                                char *full_filename=malloc(strlen(full_path)+FILENAME_SIZE);
+                                memset(full_filename,0, strlen(full_path)+FILENAME_SIZE);
+                                sprintf(full_filename, "%s/%s", full_path, data.filename);
+                                cfs_rm(cfs_file, current, full_filename, true);
+                                free(full_filename);
                                 printf("cfs_rm: folder %s just deleted\n",data.filename);
                                 deleted = true;
                                 data.active = false;
