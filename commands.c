@@ -48,16 +48,32 @@ int edit_commands(char *command,int cfs_file, list_node **current){
         cfs_mkdir(cfs_file, dirs, current);
     }
     else if(strncmp(command, (char*)"cfs_touch ", 10)==0 && strlen(command)>11) {
-        char *options = strtok(command, " \n");
-        char *filename=NULL;
+        strtok(command, "\n");
+        int index=0, size = strlen(command)+1;
+        char *check_path = malloc(size); memset(check_path, 0, size); strcpy(check_path, command);
+        char options[FILENAME_SIZE];
+        char filename[FILENAME_SIZE]; memset(filename, 0, FILENAME_SIZE);
         bool time_acc=true, time_edit=false;
-        while(options!=NULL){
-            if(strcmp(options, (char*)"-a")==0) time_acc=true;
-            else if(strcmp(options, (char*)"-m")==0) time_edit=true;
-            else { filename = options; }
-            options = strtok(NULL, " \n");
+
+        while(check_path[index] != '\0'){
+            int ptr=0; int index_begin=index;
+            while((check_path[index]!=' ') && (check_path[index] != '\0')){
+                index++;
+                ptr++;
+            }
+            memset(options, 0, FILENAME_SIZE);
+            strncpy(options, check_path+index_begin, ptr);
+            if(check_path[index] != '\0') index++;
+
+            if(strcmp(options, (char*)"cfs_touch")!=0){
+                if(strcmp(options, (char*)"-a")==0) time_acc=true;
+                else if(strcmp(options, (char*)"-m")==0) time_edit=true;
+                else { strcpy(filename, check_path+index_begin); break; }
+            }
         }
         cfs_touch(cfs_file, time_acc, time_edit, filename, current);
+
+        free(check_path);
     }
     else if(strncmp(command, (char*)"cfs_pwd", 7)==0) {
         cfs_pwd(cfs_file, current);
@@ -68,20 +84,36 @@ int edit_commands(char *command,int cfs_file, list_node **current){
         cfs_cd(cfs_file, current, path);
     }
     else if(strncmp(command, (char*)"cfs_ls", 6)==0 || (strncmp(command, (char*)"cfs_ls ", 7)==0 && strlen(command)>8)) {
-        char *options = strtok(command, " \n");
+        strtok(command, "\n");
+        int index=0, size = strlen(command)+1;
+        char *check_path = malloc(size); memset(check_path, 0, size); strcpy(check_path, command);
+        char options[FILENAME_SIZE];
         bool a=false, r=false, l=false, u=false, d=false, h=false;
-        char *filename=NULL;
-        while(options!=NULL){
-            if(strcmp(options, (char*)"-a")==0) a=true;
-            else if(strcmp(options, (char*)"-r")==0) r=true;
-            else if(strcmp(options, (char*)"-l")==0) l=true;
-            else if(strcmp(options, (char*)"-u")==0) u=true;
-            else if(strcmp(options, (char*)"-d")==0) d=true;
-            else if(strcmp(options, (char*)"-h")==0) h=true;
-            else filename = options;
-            options = strtok(NULL, " \n");
+        char filename[FILENAME_SIZE]; memset(filename, 0, FILENAME_SIZE);
+        while(check_path[index] != '\0'){
+            int ptr=0; int index_begin=index;
+            while((check_path[index]!=' ') && (check_path[index] != '\0')){
+                index++;
+                ptr++;
+            }
+            memset(options, 0, FILENAME_SIZE);
+            strncpy(options, check_path+index_begin, ptr);
+            if(check_path[index] != '\0') index++;
+
+            if(strcmp(options, (char*)"cfs_ls")!=0){
+                if(strcmp(options, (char*)"-a")==0) a=true;
+                else if(strcmp(options, (char*)"-r")==0) r=true;
+                else if(strcmp(options, (char*)"-l")==0) l=true;
+                else if(strcmp(options, (char*)"-u")==0) u=true;
+                else if(strcmp(options, (char*)"-d")==0) d=true;
+                else if(strcmp(options, (char*)"-h")==0) h=true;
+                else { strcpy(filename, check_path+index_begin); break; }
+            }
         }
-        cfs_ls(cfs_file, a, r, l, u, d, l, filename, current, NULL);
+        cfs_ls(cfs_file, a, r, l, u, d, h, filename, current);
+
+        free(check_path);
+
     }
     else if(strncmp(command, (char*)"cfs_mv ", 7)==0 && strlen(command)>8) {
         char *check_path = &(command[7]);
@@ -345,9 +377,6 @@ void add_to_bitmap(int offset, int cfs_file){
     one = one << bitmap_bit_place;
     bitmap->array[bitmap_byte_place] = bitmap->array[bitmap_byte_place]|one;
 
-    // printf("offset: %d cfs_place: %d bitmap_bit_place: %d bitmap_byte_place: %d\n",
-    // offset, cfs_place, bitmap_bit_place, bitmap_byte_place);
-
     lseek(cfs_file, sizeof(Superblock), SEEK_SET);
     write(cfs_file, bitmap, sizeof(Bitmap));
 
@@ -574,31 +603,41 @@ int cfs_mkdir(int cfs_file, char *dirnames, list_node **current){
 }
 
 int cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, list_node **current){
-    char *files = filenames;
     int fd_current, return_offset=-1;
-
     if(cfs_file>0){
         Superblock *superblock = malloc(sizeof(Superblock));
         int free_offset, source_offset;
-        strtok(files, " ");
+        int index=0, size = strlen(filenames)+1;
+        char *check_path = malloc(size); memset(check_path, 0, size); strcpy(check_path, filenames);
+        char str_source[FILENAME_SIZE];
 
-        while(files != NULL){
+        while(check_path[index]!='\0'){
+            bool exists_already = false;
+            bool empty_space = false;
             data_type data;
             MDS mds, currentMDS, fileMDS;
             lseek(cfs_file, 0, SEEK_SET);
             read(cfs_file, superblock, sizeof(Superblock));
-            bool exists_already = false;
-            bool empty_space = false;
+
+            int ptr=0; int index_begin=index;
+            while((check_path[index]!=' ') && (check_path[index] != '\0')){
+                index++;
+                ptr++;
+            }
+            memset(str_source, 0, FILENAME_SIZE);
+            strncpy(str_source, check_path+index_begin, ptr);
+            if(check_path[index] != '\0') index++;
+
             lseek(cfs_file, (*current)->offset, SEEK_SET);
             read(cfs_file, &currentMDS, superblock->metadata_size);
-            //check if name exists!
+            // Check if name exists!
             for(int i = 0; i < DATABLOCK_NUM; i++){
                 lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
                 for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++){
                     read(cfs_file, &data, sizeof(data_type));
                     int current_pointer = lseek(cfs_file, 0, SEEK_CUR);
                     if(data.active == true){
-                        if(strcmp(data.filename, files) == 0){
+                        if(strcmp(data.filename, str_source) == 0){
                             if(time_acc || time_edit){
                                 lseek(cfs_file, data.offset, SEEK_SET);
                                 read(cfs_file, &fileMDS, superblock->metadata_size);
@@ -620,7 +659,7 @@ int cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, list
                 }
             }
             if(!exists_already && empty_space){
-                //make mds
+                // Make mds
                 free_offset = get_space(cfs_file);
                 return_offset = free_offset;
                 superblock->latest_nodeid++;
@@ -630,7 +669,7 @@ int cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, list
                 mds.type = 1;
                 mds.parent_nodeid = (*current)->nodeid;
                 mds.parent_offset = (*current)->offset;
-                strcpy(mds.filename, files);
+                strcpy(mds.filename, str_source);
                 mds.creation_time = time(0); mds.access_time = time(0); mds.modification_time = time(0);
                 mds.data.datablocks[0] = mds.offset + superblock->metadata_size;
                 for(int i = 1; i < DATABLOCK_NUM; i++){
@@ -642,7 +681,7 @@ int cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, list
                 lseek(cfs_file, 0, SEEK_SET);
                 write(cfs_file, superblock, sizeof(Superblock));
 
-                //insert in current dir
+                // Insert in current dir
                 for(int i = 0; i < DATABLOCK_NUM; i++){
                     lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
                     for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++){
@@ -661,9 +700,8 @@ int cfs_touch(int cfs_file, bool time_acc, bool time_edit, char *filenames, list
                 }
                 add_to_bitmap(mds.offset, cfs_file);
             }
-            files = strtok(NULL, " ");
         }
-        free(superblock);
+        free(superblock); free(check_path);
     }
     else printf("cfs_touch: execute first cfs_workwith\n");
     return return_offset;
@@ -685,13 +723,14 @@ void cfs_cd(int cfs_file, list_node **current, char *path){
     else printf("cfs_cd: execute first cfs_workwith\n");
 }
 
-void cfs_ls(int cfs_file, bool a, bool r, bool l, bool u, bool d, bool h, char *filename, list_node **current, char *path){
+void cfs_ls(int cfs_file, bool a, bool r, bool l, bool u, bool d, bool h, char *filename, list_node **current){
     if(cfs_file>0){
         Superblock *superblock = malloc(sizeof(Superblock));
-        char *full_path = path;
-        if (path == NULL) full_path = (*current)->filename;
-        else strtok(full_path, "/");
-        while(full_path!=NULL){
+        int index=0, size = strlen(filename)+1;
+        char *check_path = malloc(size); memset(check_path, 0, size); strcpy(check_path, filename);
+        char str_source[FILENAME_SIZE];
+        bool must_print = true;
+        while((check_path[index]!='\0') || must_print){
             data_type data;
             MDS currentMDS, fileMDS;
 
@@ -699,39 +738,92 @@ void cfs_ls(int cfs_file, bool a, bool r, bool l, bool u, bool d, bool h, char *
             Superblock *superblock = malloc(sizeof(Superblock));
             read(cfs_file, superblock, sizeof(Superblock));
 
+            int ptr=0; int index_begin=index;
+            while((check_path[index]!=' ') && (check_path[index] != '\0')){
+                index++;
+                ptr++;
+            }
+            memset(str_source, 0, FILENAME_SIZE);
+            strncpy(str_source, check_path+index_begin, ptr);
+            if(check_path[index] != '\0') index++;
+
             lseek(cfs_file, (*current)->offset, SEEK_SET);
             read(cfs_file, &currentMDS, superblock->metadata_size);
-            //check if name exists!
             for(int i = 0; i < DATABLOCK_NUM; i++){
                 lseek(cfs_file, currentMDS.data.datablocks[i], SEEK_SET);
                 for (int j = 0; j < superblock->datablocks_size/(sizeof(data_type)); j++){
                     read(cfs_file, &data, sizeof(data_type));
                     int current_pointer = lseek(cfs_file, 0, SEEK_CUR);
+                    bool print=false, print_f=false, print_d=false, print_l=false, print_files=true;
+                    lseek(cfs_file, data.offset, SEEK_SET);
+                    read(cfs_file, &fileMDS, superblock->metadata_size);
+
+                    if(u) print_f=true;
+                    if(d) print_d=true;
+                    if(h) print_l=true;
+                    if(!u && !d && !h) { print_f=true; print_d=true; print_l=true; }
+
                     if(data.active == true){
-                        if(a){
-                            printf("%s\n",data.filename);
+                        if(str_source[0]!='\0'){
+                            if(strcmp(str_source, data.filename)!=0) print_files=false;
                         }
-                        if(l){
-                            lseek(cfs_file, data.offset, SEEK_SET);
-                            read(cfs_file, &fileMDS, superblock->metadata_size);
-                            char create[20], modify[20], access[20];
-                            strftime(create, 20, "%F %H:%M:%S", localtime(&fileMDS.creation_time));
-                            strftime(modify, 20, "%F %H:%M:%S", localtime(&fileMDS.modification_time));
-                            strftime(access, 20, "%F %H:%M:%S", localtime(&fileMDS.access_time));
-                            if(fileMDS.type == 2) printf("%s \t DIR \t %d \t  (TC)%s  (TA)%s  (TM)%s\n", data.filename, data.offset, create, access, modify);
-                            else if(fileMDS.type == 1) printf("%s \t FILE \t %d \t  (TC)%s  (TA)%s  (TM)%s\n", data.filename, data.offset, create, access, modify);
-                            else printf("%s \t LK \t %d \t  (TC)%s  (TA)%s  (TM)%s\n", data.filename, data.offset, create, access, modify);
-                            lseek(cfs_file, current_pointer, SEEK_SET);
+                        if(print_files){
+                            if(a){
+                                if(fileMDS.type == 2) {
+                                    if(print_d) { printf("%s \t",data.filename); print = true;}
+                                    else print = false;
+                                }
+                                else if(fileMDS.type == 1) {
+                                    if(print_f) { printf("%s \t",data.filename); print = true;}
+                                    else print = false;
+                                }
+                                else {
+                                    if(print_l) { printf("%s \t",data.filename); print = true;}
+                                    else print = false;
+                                }
+                            }
+                            else{
+                                if(strncmp(data.filename, ".", 1)!=0) {
+                                    if(fileMDS.type == 2) {
+                                        if(print_d) { printf("%s \t",data.filename); print = true;}
+                                        else print = false;
+                                    }
+                                    else if(fileMDS.type == 1) {
+                                        if(print_f) { printf("%s \t",data.filename); print = true;}
+                                        else print = false;
+                                    }
+                                    else {
+                                        if(print_l) { printf("%s \t",data.filename); print = true;}
+                                        else print = false;
+                                    }
+                                }
+                            }
+                            if(l){
+                                if(print){
+                                    char create[20], modify[20], access[20];
+                                    strftime(create, 20, "%F %H:%M:%S", localtime(&fileMDS.creation_time));
+                                    strftime(modify, 20, "%F %H:%M:%S", localtime(&fileMDS.modification_time));
+                                    strftime(access, 20, "%F %H:%M:%S", localtime(&fileMDS.access_time));
+                                    if(fileMDS.type == 2) {
+                                        if(print_d) printf("DIR \t %d \t  (TC)%s  (TA)%s  (TM)%s", data.offset, create, access, modify);
+                                    }
+                                    else if(fileMDS.type == 1) {
+                                        if(print_f) printf("FILE \t %d \t  (TC)%s  (TA)%s  (TM)%s", data.offset, create, access, modify);
+                                    }
+                                    else {
+                                        if(print_l) printf("LK \t %d \t  (TC)%s  (TA)%s  (TM)%s", data.offset, create, access, modify);
+                                    }
+                                }
+                            }
                         }
-                        else{
-                            if(strncmp(data.filename, ".", 1)!=0) printf("%s\n",data.filename);
-                        }
+                        if(print) printf("\n");
                     }
+                    lseek(cfs_file, current_pointer, SEEK_SET);
                 }
             }
-            full_path = strtok(NULL, "/");
+            must_print = false;
         }
-        free(superblock);
+        free(superblock); free(check_path);
     }
     else printf("cfs_ls: execute first cfs_workwith\n");
 }
