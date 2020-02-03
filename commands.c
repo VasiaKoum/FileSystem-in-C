@@ -1233,32 +1233,14 @@ void cfs_export(int cfs_file,  list_node **current, char *sources, char *directo
                                     if(data.active == true){
                                         lseek(cfs_file, data.offset, SEEK_SET);
                                         read(cfs_file, &allMDS, superblock->metadata_size);
-                                        char new_path_name[FILENAME_SIZE*2];
-                                        memset(new_path_name, 0, FILENAME_SIZE*2);
-                                        sprintf(new_path_name, "%s/%s", pathname, allMDS.filename);
-                                        if (allMDS.type == 1){
-                                            fd = open(new_path_name, O_WRONLY | O_CREAT, 0644);
-                                            if(fd>0){
-                                                int max_size = allMDS.size, ii=0;
-                                                while((ii<DATABLOCK_NUM) && (max_size>0)){
-                                                    if(max_size>0){
-                                                        lseek(cfs_file, allMDS.data.datablocks[ii], SEEK_SET);
-                                                        char *buffer=malloc(BLOCK_SIZE);
-                                                        read(cfs_file, buffer, BLOCK_SIZE);
-                                                        write(fd, buffer, BLOCK_SIZE);
-                                                        free(buffer);
-                                                        if(max_size>BLOCK_SIZE) max_size -=BLOCK_SIZE;
-                                                        else max_size=0;
-                                                    }
-                                                    ii++;
-                                                }
-                                                close(fd);
-                                            }
-                                            else printf("cfs_export: open: failed to access %s: no such file or directory\n", pathname);
-                                        }
-                                        else if (allMDS.type == 2){
-                                            if(mkdir(new_path_name, S_IRWXG)<0) printf("not create dir:[%s]\n", new_path_name);
-                                        }
+
+                                        char *source_filename=malloc(strlen(str_source)+strlen(allMDS.filename)+5);
+                                        memset(source_filename, 0, strlen(str_source)+strlen(allMDS.filename)+5);
+                                        sprintf(source_filename, "%s/%s", str_source, allMDS.filename);
+
+                                        cfs_export(cfs_file, current, source_filename, pathname);
+
+                                        free(source_filename);
                                         lseek(cfs_file, current_pointer, SEEK_SET);
                                     }
                                 }
