@@ -35,7 +35,7 @@ make clean
 First, to create a file .cfs(FILE the name you want without .cfs) run:
 ```
 cfs_create <OPTIONS> <FILE>
-               -bs <BLOCK_SIZE> (default 512)
+<OPTIONS>:     -bs <BLOCK_SIZE> (default 512)
                -fns <FILENAME_SIZE> (default 200)
                -cfs <MAX_FILE_SIZE> (default 3000)
                -mdfn <MAX_DIRECTORY_FILE_NUMBER> (default 10)
