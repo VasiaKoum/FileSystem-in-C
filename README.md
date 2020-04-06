@@ -8,24 +8,37 @@ Contributors
 
 Implementation
 --------------
-
 This filesystem contains files, dirs & hard links.The structure is:
 * __Superblock__: datablock_size, metadata_size, root_metadata_offset, latest_nodeid
 * __Bitmap__: map the allocated space
-* __MDSs__ for all files: nodeid, offset, filename, size, type, parent_nodeid, parent_offset, creation_time, access_time, modification_time, and an array(datablocks) with the offsets for saved data(eg for dirs, saved data are structs(data_type) for files/dirs/links that are contained in dir).
+* __MDSs__ for all files: nodeid, offset, filename, size, type, parent_nodeid, parent_offset, creation_time, access_time, modification_time and an array(datablocks) with the offsets for saved data e.g. saved data for dirs are structs(data_type) for files/dirs/links that are contained in dir.
 
 File organization looks like this:
 ![fs_img](https://user-images.githubusercontent.com/26937033/78558519-64dee200-781b-11ea-8edc-1c3e88af5b66.JPG)
 
 *The options for commands are combined like -l -a (NOT -la)!*
 
-Testing files are included for cfs_export command.
+Testing files are included for cfs_import command.
 
 Run commands
 ------------
+Compile and execute:
+```
+make
+make run
+```
+Clean:
+```
+make clean
+```
+
 First, to create a file .cfs(FILE the name you want without .cfs) run:
 ```
 cfs_create <OPTIONS> <FILE>
+               -bs <BLOCK_SIZE> (default 512)
+               -fns <FILENAME_SIZE> (default 200)
+               -cfs <MAX_FILE_SIZE> (default 3000)
+               -mdfn <MAX_DIRECTORY_FILE_NUMBER> (default 10)
 ```
 To work with cfs file(eg filename.cfs) run:
 ```
