@@ -1,40 +1,55 @@
 # FileSystem
 #### OS project 4
 
-Run commands
-------------
-```
-1.  cfs workwith <FILE>
-2.  cfs mkdir <DIRECTORIES>
-3.  cfs touch <OPTIONS> <FILES>
-    <OPTIONS>: -a
-               -m
-4.  cfs pwd
-5.  cfs cd <PATH>
-6.  cfs ls <OPTIONS> <FILES>
-    <OPTIONS>: -a
-               -r
-               -l
-               -u
-               -d
-               -h
-7.  cfs cp <OPTIONS> <SOURCE> <DESTINATION> j <OPTIONS> <SOURCES> ... <DIRECTORY>
-8.  cfs cat <SOURCE FILES> -o <OUTPUT FILE>
-9.  cfs ln <SOURCE FILES> <OUTPUT FILE>
-10. cfs mv <OPTIONS> <SOURCE> <DESTINATION> j <OPTIONS> <SOURCES> ... <DIRECTORY>
-11. cfs rm <OPTIONS> <DESTINATIONS>
-12. cfs import <SOURCES> ... <DIRECTORY>
-13. cfs export <SOURCES> ... <DIRECTORY>
-14. cfs create <OPTIONS> <FILE>
-```
-
-
 Contributors
 ------------
-
 * [Vasiliki Koumarela](https://github.com/VasiaKoum/ "Vasiliki Koumarela")
 * [Charalampos Katimertzis](https://github.com/chariskms/ "Charalampos Katimertzis")
 
 Implementation
 --------------
 
+This filesystem contains files, dirs & hard links.The structure is:
+* __Superblock__: datablock_size, metadata_size, root_metadata_offset, latest_nodeid
+* __Bitmap__: map the allocated space
+* __MDSs__ for all files: nodeid, offset, filename, size, type, parent_nodeid, parent_offset, creation_time, access_time, modification_time, and an array(datablocks) with the offsets for saved data(eg for dirs, saved data are structs(data_type) for files/dirs/links that are contained in dir).
+
+File organization looks like this:
+![fs_img](https://user-images.githubusercontent.com/26937033/78558519-64dee200-781b-11ea-8edc-1c3e88af5b66.JPG)
+
+*The options for commands are combined like -l -a (NOT -la)!*
+
+Testing files are included for cfs_export command.
+
+Run commands
+------------
+First, to create a file .cfs(FILE the name you want without .cfs) run:
+```
+cfs_create <OPTIONS> <FILE>
+```
+To work with cfs file(eg filename.cfs) run:
+```
+cfs_workwith <FILE>
+```
+Then you can run the follow commands:
+```
+1.  cfs_mkdir <DIRECTORIES>
+2.  cfs_touch <OPTIONS> <FILES>
+    <OPTIONS>: -a (update access time)
+               -m (update modification time)
+3.  cfs_pwd
+4.  cfs_cd <PATH>
+5.  cfs_ls <OPTIONS> <FILES>
+    <OPTIONS>: -a (do not ignore entries starting with .)
+               -r (list subdirectories recursively)
+               -l (use a long listing format)
+               -u (do not sort; list entries in directory order)
+               -d (list directory entries instead of contents)
+               -h (list links entries)
+6.  cfs_cat <SOURCE FILES> -o <OUTPUT FILE>
+7.  cfs_ln <SOURCE FILES> <OUTPUT FILE>
+8.  cfs_mv <OPTIONS> <SOURCE> <DESTINATION> | <OPTIONS> <SOURCES> ... <DIRECTORY>
+9.  cfs_rm <OPTIONS> <DESTINATIONS>
+10. cfs_import <SOURCES> ... <DIRECTORY> (import dirs/files-> SOURCES local path of your system, DIRECTORY in cfs file)
+11. cfs_export <SOURCES> ... <DIRECTORY> (export dirs/files-> SOURCES in cfs file, DIRECTORY local path of your system)
+```
