@@ -8,10 +8,10 @@ Contributors
 
 Implementation
 --------------
-This filesystem contains files, dirs & hard links.The structure is:
+This filesystem contains files, dirs & hard links. The structure is:
 * __Superblock__: datablock_size, metadata_size, root_metadata_offset, latest_nodeid
 * __Bitmap__: map the allocated space
-* __MDSs__ for all files: nodeid, offset, filename, size, type, parent_nodeid, parent_offset, creation_time, access_time, modification_time and an array(datablocks) with the offsets for saved data e.g. saved data for dirs are structs(data_type) for files/dirs/links that are contained in dir.
+* __MDSs__(MetaData Structure) for all files: nodeid, offset, filename, size, type, parent_nodeid, parent_offset, creation_time, access_time, modification_time and an array(datablocks) with the offsets for saved data e.g. saved data for dirs are structs(data_type) for files/dirs/links that are contained in dir.
 
 File organization looks like this:
 ![fs_img](https://user-images.githubusercontent.com/26937033/78558519-64dee200-781b-11ea-8edc-1c3e88af5b66.JPG)
@@ -40,7 +40,7 @@ cfs_create <OPTIONS> <FILE>
                -cfs <MAX_FILE_SIZE> (default 3000)
                -mdfn <MAX_DIRECTORY_FILE_NUMBER> (default 10)
 ```
-To work with cfs file(eg filename.cfs) run:
+To work with a cfs file(e.g. filename.cfs) run:
 ```
 cfs_workwith <FILE>
 ```
@@ -65,4 +65,5 @@ Then you can run the follow commands:
 9.  cfs_rm <OPTIONS> <DESTINATIONS>
 10. cfs_import <SOURCES> ... <DIRECTORY> (import dirs/files-> SOURCES local path of your system, DIRECTORY in cfs file)
 11. cfs_export <SOURCES> ... <DIRECTORY> (export dirs/files-> SOURCES in cfs file, DIRECTORY local path of your system)
+12. exit (to exit from program)
 ```
