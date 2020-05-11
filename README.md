@@ -1,5 +1,5 @@
 # FileSystem
-#### Project 4 for course: [`K22 Operating System`](http://cgi.di.uoa.gr/~ad/k22/) (DI University of Athens)
+#### Assignment 4 for lesson: [`K22 Operating System`](http://cgi.di.uoa.gr/~ad/k22/) (DI University of Athens)
 Task
 ------------
 [`Project 4 for Winter Semester 2019-2020`](http://cgi.di.uoa.gr/~ad/k22/OS-F19-Prj4.pdf)
